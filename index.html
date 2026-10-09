@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+ <title>肥龍單車狂奔 (Chubby Dino Bike Rush)</title>
+ <link href="https://fonts.googleapis.com/css2?family=Short+Stack&family=Fredoka:wght@600;700&display=swap" rel="stylesheet">
+ <style>
+ * {
+ box-sizing: border-box;
+ user-select: none;
+ -webkit-user-select: none;
+ }
+
+ body {
+ margin: 0;
+ padding: 0;
+ background-color: #f7f3e8; /* Warm paper texture background */
+ display: flex;
+ justify-content: center;
+ align-items: center;
+ height: 100vh;
+ overflow: hidden;
+ font-family: 'Short Stack', 'Comic Sans MS', 'Chalkboard SE', cursive, sans-serif;
+ touch-action: none;
+ }
+
+ #game-container {
+ position: relative;
+ width: 100%;
+ max-width: 600px;
+ height: 100vh;
+ max-height: 850px;
+ box-shadow: 0 8px 30px rgba(90, 70, 50, 0.15);
+ border-radius: 16px;
+ overflow: hidden;
+ }
+
+ canvas {
+ display: block;
+ width: 100%;
+ height: 100%;
+ background-color: #fefcf3; /* Sketchbook paper tone */
+ }
+
+ .ui-layer {
+ position: absolute;
+ top: 0;
+ left: 0;
+ width: 100%;
+ height: 100%;
+ display: flex;
+ flex-direction: column;
+ justify-content: center;
+ align-items: center;
+ pointer-events: none;
+ }
+
+ #score-display {
+ position: absolute;
+ top: 15px;
+ left: 12px;
+ right: 12px;
+ font-size: 15px;
+ font-weight: bold;
+ color: #2c2825;
+ pointer-events: none;
+ background: rgba(255, 255, 245, 0.92);
+ padding: 10px 14px;
+ border-radius: 20px;
+ border: 3px dashed #ff7675;
+ display: flex;
+ justify-content: space-between;
+ align-items: center;
+ box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+ z-index: 10;
+ }
+
+ .score-item {
+ display: flex;
+ align-items: center;
+ gap: 4px;
+ }
+
+ .score-item span {
+ color: #d63031;
+ font-size: 17px;
+ }
+
+ .screen {
+ background: rgba(255, 252, 240, 0.96);
+ padding: 26px 22px;
+ border-radius: 28px;
+ border: 5px solid #ff7675;
+ box-shadow: 6px 8px 0px #fdcb6e, 10px 14px 20px rgba(0,0,0,0.1);
+ text-align: center;
+ pointer-events: auto;
+ display: none;
+ max-width: 88%;
+ width: 420px;
+ transform: rotate(-1deg);
+ z-index: 20;
+ }
+
+ .screen.active {
+ display: flex;
+ flex-direction: column;
+ align-items: center;
+ }
+
+ h1 {
+ color: #ff6b6b;
+ text-transform: uppercase;
+ letter-spacing: 1px;
+ font-size: 2.1rem;
+ margin: 0 0 10px 0;
+ line-height: 1.2;
+ text-shadow: 3px 3px 0px #ffeaa7, 4px 4px 0px #2d3436;
+ }
+
+ p {
+ color: #4a4a4a;
+ font-size: 1.05rem;
+ margin: 0 0 18px 0;
+ line-height: 1.5;
+ }
+
+ button {
+ background-color: #55efc4;
+ color: #2d3436;
+ border: 4px solid #2d3436;
+ padding: 12px 32px;
+ font-size: 1.3rem;
+ font-weight: bold;
+ font-family: inherit;
+ border-radius: 40px;
+ cursor: pointer;
+ box-shadow: 4px 6px 0px #00b894;
+ transition: all 0.1s;
+ }
+
+ button:hover {
+ background-color: #74b9ff;
+ box-shadow: 4px 6px 0px #0984e3;
+ }
+
+ button:active {
+ transform: translateY(4px);
+ box-shadow: 0px 2px 0px #00b894;
+ }
+
+ /* On-Screen Touch Controls for Mobile */
+ .touch-controls {
+ position: absolute;
+ bottom: 20px;
+ left: 0;
+ right: 0;
+ display: flex;
+ justify-content: space-between;
+ padding: 0 20px;
+ pointer-events: none;
+ z-index: 15;
+ }
+
+ .touch-btn {
+ width: 65px;
+ height: 65px;
+ background: rgba(255, 255, 255, 0.7);
+ border: 3px solid #2d3436;
+ border-radius: 50%;
+ display: flex;
+ justify-content: center;
+ align-items: center;
+ font-size: 26px;
+ pointer-events: auto;
+ box-shadow: 0 4px 0 #2d3436;
+ touch-action: manipulation;
+ }
+
+ .touch-btn:active {
+ transform: scale(0.92);
+ background: rgba(255, 234, 167, 0.9);
+ }
+
+ .d-pad {
+ display: grid;
+ grid-template-columns: repeat(3, 50px);
+ grid-template-rows: repeat(2, 50px);
+ gap: 6px;
+ }
+ </style>
+</head>
+<body>
+
+<div id="game-container">
+ <canvas id="gameCanvas"></canvas>
+
+ <div id="score-display">
+ <div class="score-item">⏱️ <span id="score">0</span>s</div>
+ <div class="score-item">🚴 <span id="dist-display">0</span>m</div>
+ <div class="score-item">⭐ <span id="bonus-display">0</span>pt</div>
+ <div class="score-item" style="color: #6c5ce7;">🏆 <span id="total-display" style="color:#6c5ce7; font-size: 18px;">0</span></div>
+ </div>
+
+ <div class="touch-controls">
+ <div style="display: flex; gap: 8px;">
+ <div class="touch-btn" id="btn-left">⬅️</div>
+ <div class="touch-btn" id="btn-right">➡️</div>
+ </div>
+ <div style="display: flex; gap: 8px;">
+ <div class="touch-btn" id="btn-up">⬆️</div>
+ <div class="touch-btn" id="btn-down">⬇️</div>
+ </div>
+ </div>
+
+ <div class="ui-layer">
+ <!-- Start Screen -->
+ <div id="start-screen" class="screen active">
+ <h1>肥翼龍單車<br>狂奔</h1>
+ <p>🖍️ 兒童塗鴉風極限生存！<br><br><b>操控說明：</b><br>• ⬅️ ➡️ / A D 閃避方向<br>• ⬆️ ⬇️ / W S 加速與減速<br><br>⚠️ <b>20秒後：</b> 天降星獎賞⭐與危險炸彈💣！<br>⚠️ <b>30秒後：</b> 路障開始隨機擺動！</p>
+ <button id="start-btn">開始遊戲</button>
+ </div>
+
+ <!-- Game Over Screen -->
+ <div id="game-over-screen" class="screen">
+ <h1>Game Over!</h1>
+ <div style="text-align: left; background: #fff8e7; padding: 14px 18px; border-radius: 16px; border: 2px dashed #fdcb6e; margin-bottom: 20px; font-size: 1rem; width: 100%;">
+ <p style="margin: 6px 0;">⏱️ 存活時間: <span id="final-time" style="font-weight:bold; color:#ff6b6b;">0</span> 秒 (+<span id="final-time-pts">0</span>分)</p>
+ <p style="margin: 6px 0;">🚴 行駛距離: <span id="final-dist" style="font-weight:bold; color:#0984e3;">0</span> 米 (+<span id="final-dist-pts">0</span>分)</p>
+ <p style="margin: 6px 0;">⭐ 收集獎賞: <span id="final-bonus" style="font-weight:bold; color:#fdcb6e;">0</span> 分</p>
+ <hr style="border: 0; border-top: 2px dashed #ffeaa7; margin: 8px 0;">
+ <p style="margin: 6px 0; font-size: 1.25rem; font-weight: bold; color: #6c5ce7;">🏆 總得分數: <span id="final-score">0</span> 分</p>
+ </div>
+ <button id="restart-btn">再玩一次</button>
+ </div>
+ </div>
+</div>
+
+<script>
+ const canvas = document.getElementById('gameCanvas');
+ const ctx = canvas.getContext('2d');
+
+ // UI Elements
+ const startScreen = document.getElementById('start-screen');
+ const gameOverScreen = document.getElementById('game-over-screen');
+ const scoreElement = document.getElementById('score');
+ const distElement = document.getElementById('dist-display');
+ const bonusElement = document.getElementById('bonus-display');
+ const totalElement = document.getElementById('total-display');
+
+ const finalTimeElement = document.getElementById('final-time');
+ const finalTimePtsElement = document.getElementById('final-time-pts');
+ const finalDistElement = document.getElementById('final-dist');
+ const finalDistPtsElement = document.getElementById('final-dist-pts');
+ const finalBonusElement = document.getElementById('final-bonus');
+ const finalScoreElement = document.getElementById('final-score');
+
+ const startBtn = document.getElementById('start-btn');
+ const restartBtn = document.getElementById('restart-btn');
+
+ // Player Object
+ let player = {
+ x: 0,
+ y: 0,
+ targetY: 0,
+ baseY: 0,
+ width: 60,
+ height: 72,
+ hitboxW: 40,
+ hitboxH: 45,
+ velX: 0,
+ speedMultiplier: 1.0,
+ trails: [],
+ legAngle: 0,
+ propellerAngle: 0
+ };
+
+ // Controls State
+ let keys = { left: false, right: false, up: false, down: false };
+
+ // Game Variables
+ let gameLoopId = null;
+ let gameState = 'START'; // START, PLAYING, GAMEOVER
+ let score = 0;
+ let distance = 0;
+ let bonusScore = 0;
+ let totalScore = 0;
+ let startTime = 0;
+ let bgOffsetY = 0;
+
+ // Settings & Dynamic Speeds
+ const roadSpeedBase = 5.5;
+ let currentRoadSpeed = roadSpeedBase;
+ let obstacleTimer = 0;
+ const obstacleSpawnRateBase = 65;
+ let currentObstacleSpawnRate = obstacleSpawnRateBase;
+
+ // Entities
+ let obstacles = [];
+ let sceneryTrees = [];
+ let fallingItems = [];
+ let floatingTexts = [];
+ let itemSpawnTimer = 0;
+
+ function resizeCanvas() {
+ const container = document.getElementById('game-container');
+ canvas.width = container.clientWidth;
+ canvas.height = container.clientHeight;
+
+ // Road width is 65% of canvas width; Dino takes ~ 25% (1/4) of road width
+ const roadW = canvas.width * 0.65;
+ player.width = roadW * 0.25;
+ player.height = player.width * 1.2;
+ player.hitboxW = player.width * 0.65;
+ player.hitboxH = player.height * 0.60;
+ }
+
+ // Helper: Multi-pass Crayon Rough Line
+ function drawCrayonLine(ctx, x1, y1, x2, y2, color, width = 3, jitter = 1.8) {
+ ctx.save();
+ ctx.strokeStyle = color;
+ ctx.lineWidth = width;
+ ctx.lineCap = 'round';
+ ctx.lineJoin = 'round';
+
+ for (let pass = 0; pass < 2; pass++) {
+ ctx.globalAlpha = pass === 0 ? 0.85 : 0.45;
+ ctx.beginPath();
+ const startX = x1 + (Math.random() - 0.5) * jitter;
+ const startY = y1 + (Math.random() - 0.5) * jitter;
+ const endX = x2 + (Math.random() - 0.5) * jitter;
+ const endY = y2 + (Math.random() - 0.5) * jitter;
+
+ ctx.moveTo(startX, startY);
+ const midX = (startX + endX) / 2 + (Math.random() - 0.5) * jitter * 1.5;
+ const midY = (startY + endY) / 2 + (Math.random() - 0.5) * jitter * 1.5;
+ ctx.quadraticCurveTo(midX, midY, endX, endY);
+ ctx.stroke();
+ }
+ ctx.restore();
+ }
+
+ // Helper: Rough Crayon Circle with Scribble Fill
+ function drawRoughCircle(ctx, cx, cy, r, fillColor, strokeColor = '#2d3436', strokeWidth = 3) {
+ ctx.save();
+ if (fillColor) {
+ ctx.fillStyle = fillColor;
+ ctx.globalAlpha = 0.9;
+ ctx.beginPath();
+ const steps = 14;
+ for (let i = 0; i <= steps; i++) {
+ const angle = (i / steps) * Math.PI * 2;
+ const offset = (Math.random() - 0.5) * 2.5;
+ const x = cx + Math.cos(angle) * (r + offset);
+ const y = cy + Math.sin(angle) * (r + offset);
+ if (i === 0) ctx.moveTo(x, y);
+ else ctx.lineTo(x, y);
+ }
+ ctx.closePath();
+ ctx.fill();
+
+ // Scribble texture overlay
+ ctx.strokeStyle = fillColor;
+ ctx.lineWidth = 2;
+ ctx.globalAlpha = 0.35;
+ ctx.beginPath();
+ for (let j = 0; j < 5; j++) {
+ let rx = cx + (Math.random() - 0.5) * r * 1.2;
+ let ry = cy + (Math.random() - 0.5) * r * 1.2;
+ ctx.moveTo(rx, ry);
+ ctx.lineTo(rx + (Math.random() - 0.5) * 8, ry + (Math.random() - 0.5) * 8);
+ }
+ ctx.stroke();
+ }
+
+ if (strokeColor) {
+ ctx.globalAlpha = 1.0;
+ ctx.strokeStyle = strokeColor;
+ ctx.lineWidth = strokeWidth;
+ ctx.beginPath();
+ const steps = 12;
+ for (let i = 0; i <= steps; i++) {
+ const angle = (i / steps) * Math.PI * 2;
+ const offset = (Math.random() - 0.5) * 2;
+ const x = cx + Math.cos(angle) * (r + offset);
+ const y = cy + Math.sin(angle) * (r + offset);
+ if (i === 0) ctx.moveTo(x, y);
+ else ctx.lineTo(x, y);
+ }
+ ctx.closePath();
+ ctx.stroke();
+ }
+ ctx.restore();
+ }
+
+ // Helper: Crayon Star
+ function drawCrayonStar(ctx, cx, cy, spikes, outerRadius, innerRadius, fillColor, strokeColor) {
+ ctx.save();
+ ctx.beginPath();
+ let rot = Math.PI / 2 * 3;
+ let step = Math.PI / spikes;
+
+ ctx.moveTo(cx, cy - outerRadius);
+ for (let i = 0; i < spikes; i++) {
+ let x = cx + Math.cos(rot) * outerRadius + (Math.random() - 0.5) * 2.5;
+ let y = cy + Math.sin(rot) * outerRadius + (Math.random() - 0.5) * 2.5;
+ ctx.lineTo(x, y);
+ rot += step;
+
+ x = cx + Math.cos(rot) * innerRadius + (Math.random() - 0.5) * 2.5;
+ y = cy + Math.sin(rot) * innerRadius + (Math.random() - 0.5) * 2.5;
+ ctx.lineTo(x, y);
+ rot += step;
+ }
+ ctx.lineTo(cx, cy - outerRadius);
+ ctx.closePath();
+
+ ctx.fillStyle = fillColor;
+ ctx.fill();
+ if (strokeColor) {
+ ctx.strokeStyle = strokeColor;
+ ctx.lineWidth = 3;
+ ctx.stroke();
+ }
+ ctx.restore();
+ }
+
+ function drawBackgroundAndRoad() {
+ const roadWidth = canvas.width * 0.65;
+ const roadLeft = (canvas.width - roadWidth) / 2;
+
+ // Grass Background
+ ctx.fillStyle = '#badc58';
+ ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+ // Grass tufts & crayon flowers
+ for (let i = 0; i < 16; i++) {
+ const gx = (i * 60 + 15) % canvas.width;
+ if (gx > roadLeft - 10 && gx < roadLeft + roadWidth + 10) continue;
+ const gy = (i * 65 + bgOffsetY * 0.4) % canvas.height;
+ drawCrayonLine(ctx, gx, gy, gx + 5, gy - 10, '#6ab04c', 2.5);
+ drawCrayonLine(ctx, gx + 2, gy, gx + 8, gy - 8, '#6ab04c', 2);
+ if (i % 3 === 0) {
+ drawRoughCircle(ctx, gx + 3, gy - 12, 3.5, '#ff7675', '#d63031', 1);
+ }
+ }
+
+ // Asphalt Road
+ ctx.fillStyle = '#4a5568';
+ ctx.fillRect(roadLeft, 0, roadWidth, canvas.height);
+
+ // Texture Noise on Road
+ ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+ for (let r = 0; r < 20; r++) {
+ const rx = roadLeft + (r * 23) % roadWidth;
+ const ry = (r * 45 + bgOffsetY * 0.8) % canvas.height;
+ ctx.fillRect(rx, ry, 6, 6);
+ }
+
+ // Crayon White Road Side Borders
+ drawCrayonLine(ctx, roadLeft, 0, roadLeft, canvas.height, '#ffffff', 5, 2);
+ drawCrayonLine(ctx, roadLeft + roadWidth, 0, roadLeft + roadWidth, canvas.height, '#ffffff', 5, 2);
+
+ // Yellow Dashed Center Line
+ bgOffsetY += currentRoadSpeed * player.speedMultiplier;
+ const dashLen = 32;
+ const gapLen = 24;
+ const totalPattern = dashLen + gapLen;
+ const startY = (bgOffsetY % totalPattern) - totalPattern;
+
+ for (let y = startY; y < canvas.height + totalPattern; y += totalPattern) {
+ drawCrayonLine(ctx, canvas.width / 2, y, canvas.width / 2, y + dashLen, '#f1c40f', 5, 2);
+ }
+
+ // Scenery Trees
+ if (Math.random() < 0.04) {
+ const side = Math.random() < 0.5 ? 'left' : 'right';
+ const tx = side === 'left' ? Math.random() * (roadLeft - 45) + 20 : roadLeft + roadWidth + 25 + Math.random() * (canvas.width - roadLeft - roadWidth - 45);
+ sceneryTrees.push({ x: tx, y: -60, r: 20 + Math.random() * 10 });
+ }
+
+ for (let i = sceneryTrees.length - 1; i >= 0; i--) {
+ let tree = sceneryTrees[i];
+ tree.y += currentRoadSpeed * player.speedMultiplier;
+ drawCrayonLine(ctx, tree.x, tree.y + tree.r, tree.x, tree.y + tree.r + 12, '#795548', 6, 2);
+ drawRoughCircle(ctx, tree.x, tree.y, tree.r, '#26de81', '#20bf6b', 3.5);
+ drawRoughCircle(ctx, tree.x - 4, tree.y - 4, tree.r * 0.45, '#7bed9f', null, 0);
+ if (tree.y > canvas.height + 60) sceneryTrees.splice(i, 1);
+ }
+ }
+
+ function drawTireTrails() {
+ for (let i = player.trails.length - 1; i >= 0; i--) {
+ let t = player.trails[i];
+ // Scroll trail down along with the road
+ t.y += currentRoadSpeed * player.speedMultiplier;
+ t.alpha -= 0.012; // Slower fade for longer visible track lines
+
+ if (t.alpha <= 0 || t.y > canvas.height + 30) {
+ player.trails.splice(i, 1);
+ continue;
+ }
+ ctx.save();
+ ctx.globalAlpha = t.alpha * 0.75;
+ drawRoughCircle(ctx, t.x, t.y, t.radius || 4, t.color, t.color, 1.5);
+ ctx.restore();
+ }
+ }
+
+ function drawPlayer() {
+ // Draw skid/tire tracks
+ drawTireTrails();
+
+ ctx.save();
+ ctx.translate(player.x, player.y);
+
+ const scale = player.width / 52;
+ ctx.scale(scale, scale);
+
+ // Q-bounce squish animation based on pedaling speed
+ const squish = Math.sin(player.legAngle * 2) * 1.6;
+
+ const wheelR = 8;
+ const bikeLength = 28;
+
+ // Fluttering Scarf behind neck
+ const scarfWiggle = Math.sin(player.legAngle * 2.5) * 6;
+ drawCrayonLine(ctx, -4, -2, -18 + scarfWiggle, 6, '#ff7675', 6);
+ drawCrayonLine(ctx, 4, -2, -18 + scarfWiggle - 3, 14, '#ff7675', 5);
+
+ // Bicycle Wheels (Extra tiny compared to pterosaur)
+ drawRoughCircle(ctx, 0, -bikeLength / 2, wheelR, '#636e72', '#2d3436', 2.5);
+ drawRoughCircle(ctx, 0, bikeLength / 2, wheelR, '#636e72', '#2d3436', 2.5);
+
+ // Spokes
+ drawCrayonLine(ctx, 0, -bikeLength / 2 - 4, 0, -bikeLength / 2 + 4, '#ffffff', 1.5);
+ drawCrayonLine(ctx, 0, bikeLength / 2 - 4, 0, bikeLength / 2 + 4, '#ffffff', 1.5);
+
+ // Tiny Bike Frame & Handlebars
+ drawCrayonLine(ctx, 0, -bikeLength / 2, 0, bikeLength / 2, '#e74c3c', 4);
+ drawCrayonLine(ctx, -10, -8, 10, -8, '#2d3436', 3.5);
+
+ // --- PTERODACTYL (肥翼龍) BODY ---
+ // Flapping Wings on left & right
+ const wingFlap = Math.sin(player.legAngle * 3) * 5;
+
+ // Left Wing Membrane & Outline
+ ctx.save();
+ ctx.fillStyle = '#b2bec3';
+ ctx.fillStyle = 'rgba(162, 155, 254, 0.85)';
+ ctx.beginPath();
+ ctx.moveTo(-10, 2);
+ ctx.lineTo(-28 - wingFlap, -6 + wingFlap);
+ ctx.lineTo(-20, 14);
+ ctx.closePath();
+ ctx.fill();
+ drawCrayonLine(ctx, -10, 2, -28 - wingFlap, -6 + wingFlap, '#6c5ce7', 3.5);
+ drawCrayonLine(ctx, -28 - wingFlap, -6 + wingFlap, -20, 14, '#6c5ce7', 3);
+ drawCrayonLine(ctx, -20, 14, -8, 8, '#6c5ce7', 2.5);
+ ctx.restore();
+
+ // Right Wing Membrane & Outline
+ ctx.save();
+ ctx.fillStyle = 'rgba(162, 155, 254, 0.85)';
+ ctx.beginPath();
+ ctx.moveTo(10, 2);
+ ctx.lineTo(28 + wingFlap, -6 + wingFlap);
+ ctx.lineTo(20, 14);
+ ctx.closePath();
+ ctx.fill();
+ drawCrayonLine(ctx, 10, 2, 28 + wingFlap, -6 + wingFlap, '#6c5ce7', 3.5);
+ drawCrayonLine(ctx, 28 + wingFlap, -6 + wingFlap, 20, 14, '#6c5ce7', 3);
+ drawCrayonLine(ctx, 20, 14, 8, 8, '#6c5ce7', 2.5);
+ ctx.restore();
+
+ // Extra Chubby Lavender Ptero Body
+ const dinoR = 25;
+ drawRoughCircle(ctx, 0, 3 + squish * 0.4, dinoR, '#a29bfe', '#6c5ce7', 4);
+ drawRoughCircle(ctx, 0, 6 + squish * 0.4, dinoR * 0.62, '#ffeaa7', null, 0); // Cute yellow belly
+
+ // Cute Tiny Wings/Arms clutching handlebars
+ drawCrayonLine(ctx, -12, -5 + squish * 0.4, -6, -9, '#6c5ce7', 4);
+ drawCrayonLine(ctx, 12, -5 + squish * 0.4, 6, -9, '#6c5ce7', 4);
+
+ // Pterosaur Head Crest (後突頭冠)
+ ctx.save();
+ ctx.fillStyle = '#a29bfe';
+ ctx.strokeStyle = '#6c5ce7';
+ ctx.lineWidth = 3;
+ ctx.beginPath();
+ ctx.moveTo(-7, -10 + squish * 0.5);
+ ctx.quadraticCurveTo(-14, 10 + squish * 0.5, 0, 22 + squish * 0.5); // Elongated head crest protruding back
+ ctx.quadraticCurveTo(8, 8 + squish * 0.5, 7, -10 + squish * 0.5);
+ ctx.closePath();
+ ctx.fill();
+ ctx.stroke();
+ ctx.restore();
+
+ // Cute Beak (黃色鳥嘴/喙) in Front
+ ctx.save();
+ ctx.fillStyle = '#fdcb6e';
+ ctx.strokeStyle = '#e67e22';
+ ctx.lineWidth = 2.5;
+ ctx.beginPath();
+ ctx.moveTo(-8, -20 + squish * 0.5);
+ ctx.quadraticCurveTo(0, -32 + squish * 0.5, 8, -20 + squish * 0.5);
+ ctx.closePath();
+ ctx.fill();
+ ctx.stroke();
+ ctx.restore();
+
+ // Helmet & Helmet Base
+ drawRoughCircle(ctx, 0, -13 + squish * 0.5, 16.5, '#ff7675', '#d63031', 3);
+ drawCrayonLine(ctx, -14, -10 + squish * 0.5, 14, -10 + squish * 0.5, '#ffffff', 3.5);
+
+ // Spinning Propeller on Top of Helmet!
+ player.propellerAngle += 0.35 * player.speedMultiplier;
+ const propWidth = 14 * Math.cos(player.propellerAngle);
+ drawCrayonLine(ctx, 0, -29 + squish * 0.5, 0, -23 + squish * 0.5, '#2d3436', 3); // Stem
+ drawCrayonLine(ctx, -propWidth, -29 + squish * 0.5, propWidth, -29 + squish * 0.5, '#f1c40f', 4.5); // Propeller blade
+ drawRoughCircle(ctx, 0, -29 + squish * 0.5, 3, '#e67e22', null, 0);
+
+ // Kawaii Big Eyes with Sparkle Highlights
+ drawRoughCircle(ctx, -6, -17 + squish * 0.5, 4, '#ffffff', '#2d3436', 1.5);
+ drawRoughCircle(ctx, 6, -17 + squish * 0.5, 4, '#ffffff', '#2d3436', 1.5);
+ drawRoughCircle(ctx, -6, -18 + squish * 0.5, 2, '#2d3436', null, 0);
+ drawRoughCircle(ctx, 6, -18 + squish * 0.5, 2, '#2d3436', null, 0);
+ // White eye highlight dots
+ drawRoughCircle(ctx, -7, -19 + squish * 0.5, 1, '#ffffff', null, 0);
+ drawRoughCircle(ctx, 5, -19 + squish * 0.5, 1, '#ffffff', null, 0);
+
+ // Happy Smile & Pink Blushing Cheeks
+ drawRoughCircle(ctx, -11, -13 + squish * 0.5, 3.5, '#ff7675', null, 0);
+ drawRoughCircle(ctx, 11, -13 + squish * 0.5, 3.5, '#ff7675', null, 0);
+
+ // Cute Sweat Drop when Accelerating
+ if (keys.up || player.speedMultiplier > 1.15) {
+ drawRoughCircle(ctx, 16, -20 + squish * 0.5, 3, '#74b9ff', '#0984e3', 1);
+ }
+
+ // Cute Feathered Tail
+ drawRoughCircle(ctx, 0, 26 + squish * 0.2, 7, '#a29bfe', '#6c5ce7', 2.5);
+
+ // Pedaling Legs
+ player.legAngle += 0.25 * player.speedMultiplier;
+ const legOffX = Math.sin(player.legAngle) * 9;
+ drawCrayonLine(ctx, -14, 2, -14 + legOffX, 12, '#6c5ce7', 4.5);
+ drawCrayonLine(ctx, 14, 2, 14 - legOffX, 12, '#6c5ce7', 4.5);
+
+ ctx.restore();
+ }
+
+ function spawnObstacle() {
+ const roadWidth = canvas.width * 0.65;
+ const roadLeft = (canvas.width - roadWidth) / 2;
+ const margin = 35;
+ const x = roadLeft + margin + Math.random() * (roadWidth - margin * 2);
+
+ const types = ['ROCK', 'CONE', 'PUDDLE'];
+ const type = types[Math.floor(Math.random() * types.length)];
+ const isMoving = score >= 30; // Dynamic movement after 30 seconds!
+
+ obstacles.push({
+ x: x,
+ y: -50,
+ r: 20,
+ type: type,
+ isMoving: isMoving,
+ vx: isMoving ? (Math.random() > 0.5 ? 1 : -1) * (1.5 + Math.random() * 1.5) : 0,
+ oscAngle: Math.random() * Math.PI * 2
+ });
+ }
+
+ function updateAndDrawObstacles() {
+ const roadWidth = canvas.width * 0.65;
+ const roadLeft = (canvas.width - roadWidth) / 2;
+
+ for (let i = obstacles.length - 1; i >= 0; i--) {
+ let obs = obstacles[i];
+ obs.y += currentRoadSpeed * player.speedMultiplier;
+
+ // Horizontal movement after 30s
+ if (obs.isMoving) {
+ obs.oscAngle += 0.05;
+ obs.x += obs.vx + Math.sin(obs.oscAngle) * 0.8;
+
+ // Bounce off road margins
+ if (obs.x < roadLeft + 25) {
+ obs.x = roadLeft + 25;
+ obs.vx *= -1;
+ } else if (obs.x > roadLeft + roadWidth - 25) {
+ obs.x = roadLeft + roadWidth - 25;
+ obs.vx *= -1;
+ }
+ }
+
+ // Draw Obstacle
+ if (obs.type === 'ROCK') {
+ drawRoughCircle(ctx, obs.x, obs.y, obs.r, '#95a5a6', '#2d3436', 3);
+ drawCrayonLine(ctx, obs.x - 8, obs.y - 4, obs.x + 4, obs.y + 6, '#7f8c8d', 3);
+ } else if (obs.type === 'CONE') {
+ drawCrayonStar(ctx, obs.x, obs.y, 3, obs.r, obs.r * 0.5, '#e67e22', '#d35400');
+ drawRoughCircle(ctx, obs.x, obs.y, 6, '#ffffff', null, 0);
+ } else { // Puddle
+ drawRoughCircle(ctx, obs.x, obs.y, obs.r * 1.1, '#3498db', '#2980b9', 2);
+ }
+
+ // Collision check
+ const dx = player.x - obs.x;
+ const dy = player.y - obs.y;
+ const dist = Math.sqrt(dx * dx + dy * dy);
+ if (dist < (obs.r + player.hitboxW * 0.45)) {
+ triggerGameOver();
+ }
+
+ if (obs.y > canvas.height + 60) {
+ obstacles.splice(i, 1);
+ }
+ }
+ }
+
+ function spawnFallingItem() {
+ if (score < 20) return; // Only spawn items after 20 seconds
+
+ const roadWidth = canvas.width * 0.65;
+ const roadLeft = (canvas.width - roadWidth) / 2;
+ const x = roadLeft + 30 + Math.random() * (roadWidth - 60);
+
+ // 40% Bomb, 60% Reward Star
+ const isBomb = Math.random() < 0.4;
+ fallingItems.push({
+ x: x,
+ y: -40,
+ targetY: player.y + (Math.random() - 0.5) * 80,
+ fallProgress: 0,
+ isBomb: isBomb,
+ radius: isBomb ? 22 : 20,
+ warningTimer: 0
+ });
+ }
+
+ function updateAndDrawFallingItems() {
+ for (let i = fallingItems.length - 1; i >= 0; i--) {
+ let item = fallingItems[i];
+ item.y += (currentRoadSpeed * player.speedMultiplier) + 3.5;
+
+ // Draw Warning Shadow on ground
+ ctx.save();
+ ctx.globalAlpha = 0.35;
+ drawRoughCircle(ctx, item.x, item.y, item.radius * 1.2, item.isBomb ? '#e74c3c' : '#f1c40f', null, 0);
+ ctx.restore();
+
+ // Draw Sky Falling Item
+ if (item.isBomb) {
+ // Black Crayon Bomb
+ drawRoughCircle(ctx, item.x, item.y, item.radius, '#2d3436', '#000000', 3);
+ // Sparking Fuse
+ drawCrayonLine(ctx, item.x, item.y - item.radius, item.x + 6, item.y - item.radius - 8, '#d35400', 3);
+ drawRoughCircle(ctx, item.x + 6, item.y - item.radius - 8, 4, '#f1c40f', '#e67e22', 1);
+ } else {
+ // Golden Reward Star
+ drawCrayonStar(ctx, item.x, item.y, 5, item.radius * 1.1, item.radius * 0.5, '#f1c40f', '#d35400');
+ }
+
+ // Check Collision
+ const dx = player.x - item.x;
+ const dy = player.y - item.y;
+ const dist = Math.sqrt(dx * dx + dy * dy);
+
+ if (dist < (item.radius + player.hitboxW * 0.5)) {
+ if (item.isBomb) {
+ // Touch bomb -> BOOM!
+ createFloatingText(item.x, item.y, '💥 BOOM!', '#e74c3c');
+ triggerGameOver();
+ } else {
+ // Reward collected!
+ bonusScore += 100;
+ bonusElement.innerText = bonusScore;
+ createFloatingText(item.x, item.y, '+100 ⭐', '#f1c40f');
+ fallingItems.splice(i, 1);
+ }
+ continue;
+ }
+
+ if (item.y > canvas.height + 80) {
+ fallingItems.splice(i, 1);
+ }
+ }
+ }
+
+ function createFloatingText(x, y, text, color) {
+ floatingTexts.push({ x, y, text, color, alpha: 1.0, scale: 1.0 });
+ }
+
+ function updateAndDrawFloatingTexts() {
+ for (let i = floatingTexts.length - 1; i >= 0; i--) {
+ let ft = floatingTexts[i];
+ ft.y -= 1.8;
+ ft.alpha -= 0.025;
+ ft.scale += 0.015;
+
+ if (ft.alpha <= 0) {
+ floatingTexts.splice(i, 1);
+ continue;
+ }
+
+ ctx.save();
+ ctx.globalAlpha = ft.alpha;
+ ctx.font = 'bold 22px "Fredoka", cursive';
+ ctx.fillStyle = ft.color;
+ ctx.textAlign = 'center';
+ ctx.strokeStyle = '#2d3436';
+ ctx.lineWidth = 4;
+ ctx.strokeText(ft.text, ft.x, ft.y);
+ ctx.fillText(ft.text, ft.x, ft.y);
+ ctx.restore();
+ }
+ }
+
+ function updatePlayer() {
+ const roadWidth = canvas.width * 0.65;
+ const roadLeft = (canvas.width - roadWidth) / 2;
+ const minX = roadLeft + player.width * 0.4;
+ const maxX = roadLeft + roadWidth - player.width * 0.4;
+
+ // Steering (Left / Right)
+ if (keys.left) player.velX -= 0.85;
+ if (keys.right) player.velX += 0.85;
+
+ player.velX *= 0.84; // Inertia damping
+ player.x += player.velX;
+
+ // Clamp inside road
+ if (player.x < minX) {
+ player.x = minX;
+ player.velX = 0;
+ } else if (player.x > maxX) {
+ player.x = maxX;
+ player.velX = 0;
+ }
+
+ // Acceleration / Deceleration (Up / Down)
+ if (keys.up) {
+ player.speedMultiplier = Math.min(player.speedMultiplier + 0.03, 1.7);
+ player.targetY = player.baseY - 40;
+ } else if (keys.down) {
+ player.speedMultiplier = Math.max(player.speedMultiplier - 0.03, 0.6);
+ player.targetY = player.baseY + 30;
+ } else {
+ player.speedMultiplier += (1.0 - player.speedMultiplier) * 0.05;
+ player.targetY = player.baseY;
+ }
+
+ // Smooth Y position shift when accelerating/braking
+ player.y += (player.targetY - player.y) * 0.1;
+
+ // Determine trail color based on acceleration / deceleration state
+ let trailColor = '#0984e3'; // Default Normal Speed: Blue
+ if (keys.up || player.speedMultiplier > 1.08) {
+ trailColor = '#ff4757'; // Accelerating (Up Key): Red
+ } else if (keys.down || player.speedMultiplier < 0.92) {
+ trailColor = '#2ed573'; // Decelerating (Down Key): Green
+ }
+
+ // Continuously push tire tracks behind the rear wheel
+ player.trails.push({
+ x: player.x + (Math.random() - 0.5) * 2,
+ y: player.y + player.height * 0.28,
+ color: trailColor,
+ alpha: 0.9,
+ radius: 3.8
+ });
+ }
+
+ function gameLoop() {
+ if (gameState !== 'PLAYING') return;
+
+ ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+ // Update survival time & distance
+ const elapsed = (Date.now() - startTime) / 1000;
+ score = Math.floor(elapsed);
+ distance += (currentRoadSpeed * player.speedMultiplier) * 0.12;
+
+ scoreElement.innerText = score;
+ distElement.innerText = Math.floor(distance);
+
+ const timePts = score * 10;
+ const distPts = Math.floor(distance * 2);
+ totalScore = timePts + distPts + bonusScore;
+ totalElement.innerText = totalScore;
+
+ // Update entities
+ updatePlayer();
+
+ // Spawn obstacles
+ obstacleTimer++;
+ currentObstacleSpawnRate = Math.max(30, obstacleSpawnRateBase - Math.floor(score * 0.6));
+ if (obstacleTimer >= currentObstacleSpawnRate) {
+ spawnObstacle();
+ obstacleTimer = 0;
+ }
+
+ // Spawn falling items (> 20s)
+ itemSpawnTimer++;
+ if (itemSpawnTimer >= 100) {
+ spawnFallingItem();
+ itemSpawnTimer = 0;
+ }
+
+ // Render scene
+ drawBackgroundAndRoad();
+ updateAndDrawObstacles();
+ updateAndDrawFallingItems();
+ drawPlayer();
+ updateAndDrawFloatingTexts();
+
+ gameLoopId = requestAnimationFrame(gameLoop);
+ }
+
+ function triggerGameOver() {
+ gameState = 'GAMEOVER';
+ if (gameLoopId) cancelAnimationFrame(gameLoopId);
+
+ const timePts = score * 10;
+ const distPts = Math.floor(distance * 2);
+
+ finalTimeElement.innerText = score;
+ finalTimePtsElement.innerText = timePts;
+ finalDistElement.innerText = Math.floor(distance);
+ finalDistPtsElement.innerText = distPts;
+ finalBonusElement.innerText = bonusScore;
+ finalScoreElement.innerText = totalScore;
+
+ gameOverScreen.classList.add('active');
+ }
+
+ function startGame() {
+ if (gameLoopId) cancelAnimationFrame(gameLoopId);
+
+ resizeCanvas();
+ gameState = 'PLAYING';
+ startScreen.classList.remove('active');
+ gameOverScreen.classList.remove('active');
+
+ player.x = canvas.width / 2;
+ player.baseY = canvas.height - 180;
+ player.y = player.baseY;
+ player.targetY = player.baseY;
+ player.velX = 0;
+ player.speedMultiplier = 1.0;
+ player.trails = [];
+
+ obstacles = [];
+ sceneryTrees = [];
+ fallingItems = [];
+ floatingTexts = [];
+
+ score = 0;
+ distance = 0;
+ bonusScore = 0;
+ totalScore = 0;
+
+ obstacleTimer = 0;
+ itemSpawnTimer = 0;
+ currentRoadSpeed = roadSpeedBase;
+
+ scoreElement.innerText = '0';
+ distElement.innerText = '0';
+ bonusElement.innerText = '0';
+ totalElement.innerText = '0';
+
+ startTime = Date.now();
+ gameLoop();
+ }
+
+ // Keyboard Input
+ window.addEventListener('keydown', (e) => {
+ if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
+ if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+ if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = true;
+ if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') keys.down = true;
+ });
+
+ window.addEventListener('keyup', (e) => {
+ if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = false;
+ if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+ if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = false;
+ if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') keys.down = false;
+ });
+
+ // Mobile On-Screen Buttons
+ function bindTouchBtn(btnId, keyName) {
+ const btn = document.getElementById(btnId);
+ if (!btn) return;
+
+ const startPress = (e) => { e.preventDefault(); keys[keyName] = true; };
+ const endPress = (e) => { e.preventDefault(); keys[keyName] = false; };
+
+ btn.addEventListener('touchstart', startPress, { passive: false });
+ btn.addEventListener('touchend', endPress, { passive: false });
+ btn.addEventListener('mousedown', startPress);
+ btn.addEventListener('mouseup', endPress);
+ }
+
+ bindTouchBtn('btn-left', 'left');
+ bindTouchBtn('btn-right', 'right');
+ bindTouchBtn('btn-up', 'up');
+ bindTouchBtn('btn-down', 'down');
+
+ // UI Buttons
+ startBtn.addEventListener('click', startGame);
+ restartBtn.addEventListener('click', startGame);
+ window.addEventListener('resize', resizeCanvas);
+
+ // Initial setup draw
+ resizeCanvas();
+ player.x = canvas.width / 2;
+ player.y = canvas.height - 180;
+ drawBackgroundAndRoad();
+ drawPlayer();
+
+</script>
+</body>
+</html>
