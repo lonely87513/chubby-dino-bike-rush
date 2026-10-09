@@ -90,30 +90,53 @@
  font-size: 17px;
  }
 
+ /* Sound toggle — anchored to bottom-right of #score-display, large touch target with icon + label */
  #sound-toggle {
+ position: absolute;
+ top: calc(100% + 8px);
+ right: 0;
  pointer-events: auto;
- background: rgba(255, 255, 245, 0.92);
+ background: rgba(255, 255, 245, 0.96);
  border: 2px dashed #ff7675;
- border-radius: 50%;
- width: 32px;
- height: 32px;
+ border-radius: 14px;
+ min-height: 48px;
+ padding: 8px 14px;
  display: flex;
- justify-content: center;
  align-items: center;
- font-size: 16px;
+ justify-content: center;
+ gap: 8px;
+ color: #2c2825;
  cursor: pointer;
- padding: 0;
  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
- transition: transform 0.1s;
+ transition: transform 0.1s, opacity 0.2s, border-color 0.2s;
  -webkit-tap-highlight-color: transparent;
+ white-space: nowrap;
+ font: inherit;
+ }
+
+ #sound-toggle .sound-icon {
+ font-size: 20px;
+ line-height: 1;
+ }
+
+ #sound-toggle .sound-label {
+ font-size: 15px;
+ font-weight: bold;
+ letter-spacing: 0.5px;
+ }
+
+ /* Muted state — dim the whole button to convey the off state at a glance */
+ #sound-toggle.muted {
+ opacity: 0.6;
+ border-color: #b2bec3;
  }
 
  #sound-toggle:hover {
- transform: scale(1.08);
+ transform: scale(1.04);
  }
 
  #sound-toggle:active {
- transform: scale(0.92);
+ transform: scale(0.96);
  }
 
  .screen {
@@ -241,7 +264,7 @@
  <div class="score-item">🚴 <span id="dist-display">0</span>m</div>
  <div class="score-item">⭐ <span id="bonus-display">0</span>pt</div>
  <div class="score-item" style="color: #6c5ce7;">🏆 <span id="total-display" style="color:#6c5ce7; font-size: 18px;">0</span></div>
- <button id="sound-toggle" type="button" aria-label="音效開關">🔊</button>
+ <button id="sound-toggle" type="button" aria-label="音效開關" aria-pressed="true"><span class="sound-icon">🔊</span><span class="sound-label">音效</span></button>
  </div>
 
  <div class="touch-controls">
@@ -623,6 +646,19 @@
  });
  }
 
+ // Sync the sound toggle button UI to the current soundEnabled state.
+ // Updates both the icon span and the label span, plus muted class + aria-pressed.
+ function syncSoundButtonUI() {
+ const btn = document.getElementById('sound-toggle');
+ if (!btn) return;
+ const iconEl = btn.querySelector('.sound-icon');
+ const labelEl = btn.querySelector('.sound-label');
+ if (iconEl) iconEl.textContent = soundEnabled ? '🔊' : '🔇';
+ if (labelEl) labelEl.textContent = soundEnabled ? '音效' : '靜音';
+ btn.classList.toggle('muted', !soundEnabled);
+ btn.setAttribute('aria-pressed', soundEnabled ? 'true' : 'false');
+ }
+
  // Mute / unmute by writing to the master gain (smooth ramp to avoid click)
  function setSoundEnabled(enabled) {
  soundEnabled = enabled;
@@ -633,8 +669,7 @@
  masterGain.gain.linearRampToValueAtTime(enabled ? 0.3 : 0, now + 0.05);
  }
  try { localStorage.setItem(SOUND_STORAGE_KEY, enabled ? '1' : '0'); } catch (err) {}
- const btn = document.getElementById('sound-toggle');
- if (btn) btn.textContent = enabled ? '🔊' : '🔇';
+ syncSoundButtonUI();
  }
 
  // Player sprite (Sunshine Yellow dino on red bike, 1024x1024 with transparent background)
@@ -1390,7 +1425,7 @@
  setSoundEnabled(!soundEnabled);
  });
  // Reflect restored preference on first paint (before AudioContext exists).
- soundToggleBtn.textContent = soundEnabled ? '🔊' : '🔇';
+ syncSoundButtonUI();
  }
 
  // Initial setup draw
