@@ -742,28 +742,6 @@
  let item = fallingItems[i];
  item.y += (currentRoadSpeed * player.speedMultiplier) + 3.5;
 
- // Draw Warning Shadow on ground (anchored to ground, not the falling item)
- // Brighter & larger as the item approaches the ground; shrinks back to faint when item is far above.
- ctx.save();
- const groundY = player.baseY;
- const dropDist = Math.max(1, groundY - (-40));
- const proximity = 1 - Math.min(1, (groundY - item.y) / dropDist); // 0 far, 1 about to land
- const shadowAlpha = 0.25 + proximity * 0.55;
- const shadowRadius = item.radius * (1.0 + proximity * 0.4);
- ctx.globalAlpha = shadowAlpha;
- drawRoughCircle(ctx, item.x, groundY, shadowRadius, item.isBomb ? '#e74c3c' : '#f1c40f', null, 0);
- // Upward chevron to point out the incoming threat
- ctx.globalAlpha = shadowAlpha * 0.9;
- ctx.strokeStyle = item.isBomb ? '#e74c3c' : '#f1c40f';
- ctx.lineWidth = 3;
- ctx.lineCap = 'round';
- ctx.beginPath();
- ctx.moveTo(item.x - 8, groundY - 14);
- ctx.lineTo(item.x, groundY - 22);
- ctx.lineTo(item.x + 8, groundY - 14);
- ctx.stroke();
- ctx.restore();
-
  // Draw Sky Falling Item
  if (item.isBomb) {
  // Black Crayon Bomb
