@@ -262,6 +262,10 @@
  const canvas = document.getElementById('gameCanvas');
  const ctx = canvas.getContext('2d');
 
+ // Player sprite (Sunshine Yellow dino on red bike, 1024x1024 with transparent background)
+ const playerSprite = new Image();
+ playerSprite.src = 'assets/player-sprite.png';
+
  // UI Elements
  const startScreen = document.getElementById('start-screen');
  const gameOverScreen = document.getElementById('game-over-screen');
@@ -533,157 +537,28 @@
  }
 
  function drawPlayer() {
- // Draw skid/tire tracks
+ // Draw skid/tire tracks (keep existing trail behavior)
  drawTireTrails();
 
+ // Draw the player sprite, centered on (player.x, player.y).
+ // The sprite is 1024x1024 with a transparent background.
+ // The player object's width/height are set in resizeCanvas() to ~roadW * 0.25
+ // and width * 1.2; we draw the sprite centered on (player.x, player.y) and
+ // scale it up slightly to match the visual size of the old crayon sprite.
+
+ // Subtle vertical bob driven by legAngle for a hint of life.
+ const bob = Math.sin(player.legAngle * 2) * 1.5; // ±1.5px
+
+ const drawW = player.width * 1.4;
+ const drawH = player.height * 1.4;
+
  ctx.save();
- ctx.translate(player.x, player.y);
-
- const scale = player.width / 52;
- ctx.scale(scale, scale);
-
- // Q-bounce squish animation based on pedaling speed
- const squish = Math.sin(player.legAngle * 2) * 1.6;
-
- const wheelR = 8;
- const bikeLength = 28;
-
- // Fluttering Scarf behind neck
- const scarfWiggle = Math.sin(player.legAngle * 2.5) * 6;
- drawCrayonLine(ctx, -4, -2, -18 + scarfWiggle, 6, '#ff7675', 6);
- drawCrayonLine(ctx, 4, -2, -18 + scarfWiggle - 3, 14, '#ff7675', 5);
-
- // Bicycle Wheels (Extra tiny compared to pterosaur)
- drawRoughCircle(ctx, 0, -bikeLength / 2, wheelR, '#636e72', '#2d3436', 2.5);
- drawRoughCircle(ctx, 0, bikeLength / 2, wheelR, '#636e72', '#2d3436', 2.5);
-
- // Spokes
- drawCrayonLine(ctx, 0, -bikeLength / 2 - 4, 0, -bikeLength / 2 + 4, '#ffffff', 1.5);
- drawCrayonLine(ctx, 0, bikeLength / 2 - 4, 0, bikeLength / 2 + 4, '#ffffff', 1.5);
-
- // Tiny Bike Frame & Handlebars
- drawCrayonLine(ctx, 0, -bikeLength / 2, 0, bikeLength / 2, '#e74c3c', 4);
- drawCrayonLine(ctx, -10, -8, 10, -8, '#2d3436', 3.5);
- // Tiny bell on the right handlebar (rings while pedaling!)
- drawRoughCircle(ctx, 7, -8, 2.8, '#f1c40f', '#2d3436', 1.2);
- drawCrayonLine(ctx, 7, -8, 7, -5, '#2d3436', 1.2);
- drawRoughCircle(ctx, 7, -5, 1.2, '#2d3436', null, 0);
-
- // --- PTERODACTYL (肥翼龍) BODY ---
- // Flapping Wings on left & right
- const wingFlap = Math.sin(player.legAngle * 3) * 5;
-
- // Left Wing Membrane & Outline
- ctx.save();
- ctx.fillStyle = '#b2bec3';
- ctx.fillStyle = 'rgba(162, 155, 254, 0.85)';
- ctx.beginPath();
- ctx.moveTo(-10, 2);
- ctx.lineTo(-28 - wingFlap, -6 + wingFlap);
- ctx.lineTo(-20, 14);
- ctx.closePath();
- ctx.fill();
- drawCrayonLine(ctx, -10, 2, -28 - wingFlap, -6 + wingFlap, '#6c5ce7', 3.5);
- drawCrayonLine(ctx, -28 - wingFlap, -6 + wingFlap, -20, 14, '#6c5ce7', 3);
- drawCrayonLine(ctx, -20, 14, -8, 8, '#6c5ce7', 2.5);
- ctx.restore();
-
- // Right Wing Membrane & Outline
- ctx.save();
- ctx.fillStyle = 'rgba(162, 155, 254, 0.85)';
- ctx.beginPath();
- ctx.moveTo(10, 2);
- ctx.lineTo(28 + wingFlap, -6 + wingFlap);
- ctx.lineTo(20, 14);
- ctx.closePath();
- ctx.fill();
- drawCrayonLine(ctx, 10, 2, 28 + wingFlap, -6 + wingFlap, '#6c5ce7', 3.5);
- drawCrayonLine(ctx, 28 + wingFlap, -6 + wingFlap, 20, 14, '#6c5ce7', 3);
- drawCrayonLine(ctx, 20, 14, 8, 8, '#6c5ce7', 2.5);
- ctx.restore();
-
- // Extra Chubby Lavender Ptero Body
- const dinoR = 25;
- drawRoughCircle(ctx, 0, 3 + squish * 0.4, dinoR, '#a29bfe', '#6c5ce7', 4);
- drawRoughCircle(ctx, 0, 6 + squish * 0.4, dinoR * 0.62, '#ffeaa7', null, 0); // Cute yellow belly
-
- // Cute Tiny Wings/Arms clutching handlebars
- drawCrayonLine(ctx, -12, -5 + squish * 0.4, -6, -9, '#6c5ce7', 4);
- drawCrayonLine(ctx, 12, -5 + squish * 0.4, 6, -9, '#6c5ce7', 4);
-
- // Pterosaur Head Crest (後突頭冠)
- ctx.save();
- ctx.fillStyle = '#a29bfe';
- ctx.strokeStyle = '#6c5ce7';
- ctx.lineWidth = 3;
- ctx.beginPath();
- ctx.moveTo(-7, -10 + squish * 0.5);
- ctx.quadraticCurveTo(-14, 10 + squish * 0.5, 0, 22 + squish * 0.5); // Elongated head crest protruding back
- ctx.quadraticCurveTo(8, 8 + squish * 0.5, 7, -10 + squish * 0.5);
- ctx.closePath();
- ctx.fill();
- ctx.stroke();
- ctx.restore();
-
- // Cute Beak (黃色鳥嘴/喙) in Front
- ctx.save();
- ctx.fillStyle = '#fdcb6e';
- ctx.strokeStyle = '#e67e22';
- ctx.lineWidth = 2.5;
- ctx.beginPath();
- ctx.moveTo(-8, -20 + squish * 0.5);
- ctx.quadraticCurveTo(0, -32 + squish * 0.5, 8, -20 + squish * 0.5);
- ctx.closePath();
- ctx.fill();
- ctx.stroke();
- ctx.restore();
-
- // Beak split line (down the middle of the yellow beak)
- drawCrayonLine(ctx, 0, -22 + squish * 0.5, 0, -29 + squish * 0.5, '#e67e22', 2);
-
- // Helmet & Helmet Base
- drawRoughCircle(ctx, 0, -13 + squish * 0.5, 16.5, '#ff7675', '#d63031', 3);
- drawCrayonLine(ctx, -14, -10 + squish * 0.5, 14, -10 + squish * 0.5, '#ffffff', 3.5);
- // Helmet chin strap (just under the rim, around the neck)
- drawCrayonLine(ctx, -10, 5 + squish * 0.5, 10, 5 + squish * 0.5, '#d63031', 2.5);
-
- // Spinning Propeller on Top of Helmet!
- player.propellerAngle += 0.35 * player.speedMultiplier;
- const propWidth = 14 * Math.cos(player.propellerAngle);
- drawCrayonLine(ctx, 0, -29 + squish * 0.5, 0, -23 + squish * 0.5, '#2d3436', 3); // Stem
- drawCrayonLine(ctx, -propWidth, -29 + squish * 0.5, propWidth, -29 + squish * 0.5, '#f1c40f', 4.5); // Propeller blade
- drawRoughCircle(ctx, 0, -29 + squish * 0.5, 3, '#e67e22', null, 0);
-
- // Kawaii Big Eyes with Sparkle Highlights
- drawRoughCircle(ctx, -6, -17 + squish * 0.5, 4, '#ffffff', '#2d3436', 1.5);
- drawRoughCircle(ctx, 6, -17 + squish * 0.5, 4, '#ffffff', '#2d3436', 1.5);
- drawRoughCircle(ctx, -6, -18 + squish * 0.5, 2, '#2d3436', null, 0);
- drawRoughCircle(ctx, 6, -18 + squish * 0.5, 2, '#2d3436', null, 0);
- // White eye highlight dots
- drawRoughCircle(ctx, -7, -19 + squish * 0.5, 1, '#ffffff', null, 0);
- drawRoughCircle(ctx, 5, -19 + squish * 0.5, 1, '#ffffff', null, 0);
-
- // Happy Smile & Pink Blushing Cheeks
- drawRoughCircle(ctx, -11, -13 + squish * 0.5, 3.5, '#ff7675', null, 0);
- drawRoughCircle(ctx, 11, -13 + squish * 0.5, 3.5, '#ff7675', null, 0);
-
- // Cute Sweat Drop when Accelerating
- if (keys.up || player.speedMultiplier > 1.15) {
- drawRoughCircle(ctx, 16, -20 + squish * 0.5, 3, '#74b9ff', '#0984e3', 1);
- }
-
- // Cute Feathered Tail
- drawRoughCircle(ctx, 0, 26 + squish * 0.2, 7, '#a29bfe', '#6c5ce7', 2.5);
- // Tail tuft accents (layered for a fluffy, mascot-feather look)
- drawRoughCircle(ctx, -3, 30 + squish * 0.2, 4, '#6c5ce7', null, 0);
- drawRoughCircle(ctx, 4, 29 + squish * 0.2, 3.5, '#ffeaa7', null, 0);
-
- // Pedaling Legs
- player.legAngle += 0.25 * player.speedMultiplier;
- const legOffX = Math.sin(player.legAngle) * 9;
- drawCrayonLine(ctx, -14, 2, -14 + legOffX, 12, '#6c5ce7', 4.5);
- drawCrayonLine(ctx, 14, 2, 14 - legOffX, 12, '#6c5ce7', 4.5);
-
+ ctx.translate(player.x, player.y + bob);
+ ctx.drawImage(
+ playerSprite,
+ -drawW / 2, -drawH / 2, // top-left corner (centered)
+ drawW, drawH // width, height
+ );
  ctx.restore();
  }
 
@@ -929,6 +804,12 @@
  alpha: 0.9,
  radius: 3.8
  });
+
+ // Animation tick updates (moved from old drawPlayer(); kept so the subtle
+ // vertical bob in drawPlayer() still animates, and to preserve the existing
+ // angle values on the player object for any future use).
+ player.propellerAngle += 0.35 * player.speedMultiplier;
+ player.legAngle += 0.25 * player.speedMultiplier;
  }
 
  function gameLoop() {
