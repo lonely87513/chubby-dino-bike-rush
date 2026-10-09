@@ -90,11 +90,11 @@
  font-size: 17px;
  }
 
- /* Sound toggle — anchored to bottom-right of #score-display, large touch target with icon + label */
+ /* Sound toggle — sits inline as the last item in #score-display (flex row).
+ Kept inline (not absolutely positioned) so the score bar's bounding box contains it,
+ avoiding any chance of the absolute positioning pushing itself or the D-pad
+ out of the visible viewport on narrow mobile Chrome. */
  #sound-toggle {
- position: absolute;
- top: calc(100% + 8px);
- right: 0;
  pointer-events: auto;
  background: rgba(255, 255, 245, 0.96);
  border: 2px dashed #ff7675;
@@ -263,7 +263,6 @@
  <div class="score-item">⏱️ <span id="score">0</span>s</div>
  <div class="score-item">🚴 <span id="dist-display">0</span>m</div>
  <div class="score-item">⭐ <span id="bonus-display">0</span>pt</div>
- <div class="score-item" style="color: #6c5ce7;">🏆 <span id="total-display" style="color:#6c5ce7; font-size: 18px;">0</span></div>
  <button id="sound-toggle" type="button" aria-label="音效開關" aria-pressed="true"><span class="sound-icon">🔊</span><span class="sound-label">音效</span></button>
  </div>
 
@@ -683,7 +682,6 @@
  const scoreElement = document.getElementById('score');
  const distElement = document.getElementById('dist-display');
  const bonusElement = document.getElementById('bonus-display');
- const totalElement = document.getElementById('total-display');
 
  const finalTimeElement = document.getElementById('final-time');
  const finalTimePtsElement = document.getElementById('final-time-pts');
@@ -1239,7 +1237,6 @@
  const timePts = score * 10;
  const distPts = Math.floor(distance * 2);
  totalScore = timePts + distPts + bonusScore;
- totalElement.innerText = totalScore;
 
  // Update entities
  updatePlayer();
@@ -1357,7 +1354,6 @@
  scoreElement.innerText = '0';
  distElement.innerText = '0';
  bonusElement.innerText = '0';
- totalElement.innerText = '0';
 
  pauseTime = 0;
  startTime = Date.now();
