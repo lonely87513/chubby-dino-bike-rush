@@ -192,6 +192,17 @@
  grid-template-rows: repeat(2, 50px);
  gap: 6px;
  }
+
+ kbd, .kbd {
+ background: #2d3436;
+ color: #fff;
+ padding: 2px 8px;
+ border-radius: 4px;
+ font-family: monospace;
+ font-weight: bold;
+ display: inline-block;
+ line-height: 1.2;
+ }
  </style>
 </head>
 <body>
@@ -221,7 +232,7 @@
  <!-- Start Screen -->
  <div id="start-screen" class="screen active">
  <h1>肥翼龍單車<br>狂奔</h1>
- <p>🖍️ 兒童塗鴉風極限生存！<br><br><b>操控說明：</b><br>• ⬅️ ➡️ / A D 閃避方向<br>• ⬆️ ⬇️ / W S 加速與減速<br><br>⚠️ <b>20秒後：</b> 天降星獎賞⭐與危險炸彈💣！<br>⚠️ <b>30秒後：</b> 路障開始隨機擺動！</p>
+ <p>🖍️ 兒童塗鴉風極限生存！<br><br><b>操控說明：</b><br>• ⬅️ ➡️ / A D 閃避方向<br>• ⬆️ ⬇️ / W S 加速與減速<br><br>⚠️ <b>20秒後：</b> 天降星獎賞⭐與危險炸彈💣！<br>⚠️ <b>30秒後：</b> 路障開始隨機擺動！<br>⌨️ <b>空白鍵</b> 暫停 / 繼續</p>
  <button id="start-btn">開始遊戲</button>
  </div>
 
@@ -237,6 +248,13 @@
  </div>
  <button id="restart-btn">再玩一次</button>
  </div>
+
+ <!-- Pause Screen -->
+ <div id="pause-screen" class="screen">
+ <h1>⏸ 暫停</h1>
+ <p>按 <kbd>空白鍵</kbd> 繼續遊戲</p>
+ <button id="resume-btn">繼續遊戲</button>
+ </div>
  </div>
 </div>
 
@@ -247,6 +265,7 @@
  // UI Elements
  const startScreen = document.getElementById('start-screen');
  const gameOverScreen = document.getElementById('game-over-screen');
+ const pauseScreen = document.getElementById('pause-screen');
  const scoreElement = document.getElementById('score');
  const distElement = document.getElementById('dist-display');
  const bonusElement = document.getElementById('bonus-display');
@@ -261,6 +280,7 @@
 
  const startBtn = document.getElementById('start-btn');
  const restartBtn = document.getElementById('restart-btn');
+ const resumeBtn = document.getElementById('resume-btn');
 
  // Player Object
  let player = {
@@ -290,6 +310,7 @@
  let bonusScore = 0;
  let totalScore = 0;
  let startTime = 0;
+ let pauseTime = 0;
  let bgOffsetY = 0;
 
  // Settings & Dynamic Speeds
@@ -956,6 +977,29 @@
  gameLoopId = requestAnimationFrame(gameLoop);
  }
 
+ function togglePause() {
+ if (gameState === 'PLAYING') {
+ gameState = 'PAUSED';
+ if (gameLoopId) cancelAnimationFrame(gameLoopId);
+ gameLoopId = null;
+ pauseTime = Date.now();
+ pauseScreen.classList.add('active');
+ } else if (gameState === 'PAUSED') {
+ const pausedDuration = Date.now() - pauseTime;
+ startTime += pausedDuration;
+ pauseTime = 0;
+ // Clear any held input so keys pressed during pause don't stick
+ keys.left = false;
+ keys.right = false;
+ keys.up = false;
+ keys.down = false;
+ document.querySelectorAll('.touch-btn.pressed').forEach(b => b.classList.remove('pressed'));
+ pauseScreen.classList.remove('active');
+ gameState = 'PLAYING';
+ gameLoop();
+ }
+ }
+
  function triggerGameOver() {
  gameState = 'GAMEOVER';
  if (gameLoopId) cancelAnimationFrame(gameLoopId);
@@ -1008,12 +1052,21 @@
  bonusElement.innerText = '0';
  totalElement.innerText = '0';
 
+ pauseTime = 0;
  startTime = Date.now();
  gameLoop();
  }
 
  // Keyboard Input
  window.addEventListener('keydown', (e) => {
+ // Spacebar toggles pause/resume (only during active gameplay)
+ if (e.key === ' ' || e.code === 'Space') {
+ if (gameState === 'PLAYING' || gameState === 'PAUSED') {
+ e.preventDefault();
+ togglePause();
+ }
+ return;
+ }
  if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.left = true;
  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
  if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') keys.up = true;
@@ -1052,6 +1105,7 @@
  // UI Buttons
  startBtn.addEventListener('click', startGame);
  restartBtn.addEventListener('click', startGame);
+ resumeBtn.addEventListener('click', () => { if (gameState === 'PAUSED') togglePause(); });
  window.addEventListener('resize', resizeCanvas);
 
  // Initial setup draw
