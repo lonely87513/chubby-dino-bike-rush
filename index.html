@@ -203,8 +203,8 @@
 
  /* On-Screen Touch Controls for Mobile */
  .touch-controls {
- position: absolute;
- bottom: 20px;
+ position: fixed;
+ bottom: max(20px, env(safe-area-inset-bottom));
  left: 0;
  right: 0;
  display: flex;
