@@ -90,6 +90,32 @@
  font-size: 17px;
  }
 
+ #sound-toggle {
+ pointer-events: auto;
+ background: rgba(255, 255, 245, 0.92);
+ border: 2px dashed #ff7675;
+ border-radius: 50%;
+ width: 32px;
+ height: 32px;
+ display: flex;
+ justify-content: center;
+ align-items: center;
+ font-size: 16px;
+ cursor: pointer;
+ padding: 0;
+ box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+ transition: transform 0.1s;
+ -webkit-tap-highlight-color: transparent;
+ }
+
+ #sound-toggle:hover {
+ transform: scale(1.08);
+ }
+
+ #sound-toggle:active {
+ transform: scale(0.92);
+ }
+
  .screen {
  background: rgba(255, 252, 240, 0.96);
  padding: 26px 22px;
@@ -215,6 +241,7 @@
  <div class="score-item">🚴 <span id="dist-display">0</span>m</div>
  <div class="score-item">⭐ <span id="bonus-display">0</span>pt</div>
  <div class="score-item" style="color: #6c5ce7;">🏆 <span id="total-display" style="color:#6c5ce7; font-size: 18px;">0</span></div>
+ <button id="sound-toggle" type="button" aria-label="音效開關">🔊</button>
  </div>
 
  <div class="touch-controls">
@@ -261,6 +288,354 @@
 <script>
  const canvas = document.getElementById('gameCanvas');
  const ctx = canvas.getContext('2d');
+
+ // ============================================================
+ // Audio System (procedural Web Audio API — no external files)
+ // ============================================================
+ let audioCtx = null;
+ let masterGain = null;
+ let soundEnabled = true;
+ let bgmTimer = null;
+ let bgmNextNoteTime = 0;
+ let bgmStep = 0;
+ const BGM_BPM = 124;
+ const BGM_BEAT = 60 / BGM_BPM; // seconds per beat
+ const BGM_LOOP_BEATS = 8; // loop length in beats
+ const SOUND_STORAGE_KEY = 'chubby-dino-sound-enabled';
+
+ // Restore sound preference from localStorage (if previously saved)
+ try {
+ const stored = localStorage.getItem(SOUND_STORAGE_KEY);
+ if (stored !== null) soundEnabled = stored === '1';
+ } catch (err) { /* localStorage may be blocked; ignore silently */ }
+
+ // Note frequency helpers (equal-tempered, A4 = 440 Hz)
+ function noteFreq(semitonesFromA4) {
+ return 440 * Math.pow(2, semitonesFromA4 / 12);
+ }
+ const NOTE_C4 = noteFreq(-9); // C4
+ const NOTE_D4 = noteFreq(-7);
+ const NOTE_E4 = noteFreq(-5);
+ const NOTE_F4 = noteFreq(-4);
+ const NOTE_G4 = noteFreq(-2);
+ const NOTE_A4 = noteFreq(0);
+ const NOTE_B4 = noteFreq(2);
+ const NOTE_C5 = noteFreq(3);
+ const NOTE_D5 = noteFreq(5);
+ const NOTE_E5 = noteFreq(7);
+ const NOTE_F5 = noteFreq(8);
+ const NOTE_G5 = noteFreq(10);
+ const NOTE_A5 = noteFreq(12);
+ const NOTE_B5 = noteFreq(14);
+ const NOTE_C6 = noteFreq(15);
+ const NOTE_C3 = noteFreq(-21);
+ const NOTE_G3 = noteFreq(-14);
+ const NOTE_F3 = noteFreq(-16);
+
+ function unlockAudio() {
+ if (audioCtx) {
+ if (audioCtx.state === 'suspended' && audioCtx.resume) {
+ audioCtx.resume().catch(() => {});
+ }
+ return;
+ }
+ const Ctx = window.AudioContext || window.webkitAudioContext;
+ if (!Ctx) return;
+ audioCtx = new Ctx();
+ masterGain = audioCtx.createGain();
+ masterGain.gain.value = soundEnabled ? 0.3 : 0;
+ masterGain.connect(audioCtx.destination);
+ if (audioCtx.state === 'suspended' && audioCtx.resume) {
+ audioCtx.resume().catch(() => {});
+ }
+ }
+
+ // Schedule a single oscillator note with ADSR-ish envelope.
+ // Returns the GainNode so future code can tweak if needed.
+ function playNote({ type = 'sine', freq, when, duration, peak = 0.3, attack = 0.005, release = 0.05 }) {
+ if (!audioCtx || !masterGain) return null;
+ const osc = audioCtx.createOscillator();
+ const gain = audioCtx.createGain();
+ osc.type = type;
+ osc.frequency.value = freq;
+ const t0 = when;
+ gain.gain.setValueAtTime(0, t0);
+ gain.gain.linearRampToValueAtTime(peak, t0 + attack);
+ gain.gain.setValueAtTime(peak, Math.max(t0 + attack, t0 + duration - release));
+ gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+ osc.connect(gain);
+ gain.connect(masterGain);
+ osc.start(t0);
+ osc.stop(t0 + duration + 0.02);
+ return gain;
+ }
+
+ // Schedule a descending sine sweep (frequency ramp) with envelope
+ function playSweep({ freqStart, freqEnd, when, duration = 0.4, type = 'sine', peak = 0.5 }) {
+ if (!audioCtx || !masterGain) return null;
+ const osc = audioCtx.createOscillator();
+ const gain = audioCtx.createGain();
+ osc.type = type;
+ osc.frequency.setValueAtTime(freqStart, when);
+ osc.frequency.exponentialRampToValueAtTime(Math.max(40, freqEnd), when + duration);
+ const t0 = when;
+ gain.gain.setValueAtTime(0, t0);
+ gain.gain.linearRampToValueAtTime(peak, t0 + 0.005);
+ gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+ osc.connect(gain);
+ gain.connect(masterGain);
+ osc.start(t0);
+ osc.stop(t0 + duration + 0.02);
+ return gain;
+ }
+
+ // Build a tiny white-noise AudioBuffer (one-shot, reused across plays)
+ let _noiseBuffer = null;
+ function getNoiseBuffer() {
+ if (_noiseBuffer || !audioCtx) return _noiseBuffer;
+ const length = Math.floor(audioCtx.sampleRate * 0.5);
+ _noiseBuffer = audioCtx.createBuffer(1, length, audioCtx.sampleRate);
+ const data = _noiseBuffer.getChannelData(0);
+ for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+ return _noiseBuffer;
+ }
+
+ function playNoise({ when, duration = 0.15, peak = 0.5, lowpass = 1500 }) {
+ if (!audioCtx || !masterGain) return null;
+ const buffer = getNoiseBuffer();
+ if (!buffer) return null;
+ const src = audioCtx.createBufferSource();
+ src.buffer = buffer;
+ const filter = audioCtx.createBiquadFilter();
+ filter.type = 'lowpass';
+ filter.frequency.value = lowpass;
+ const gain = audioCtx.createGain();
+ const t0 = when;
+ gain.gain.setValueAtTime(0, t0);
+ gain.gain.linearRampToValueAtTime(peak, t0 + 0.003);
+ gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+ src.connect(filter);
+ filter.connect(gain);
+ gain.connect(masterGain);
+ src.start(t0);
+ src.stop(t0 + duration + 0.02);
+ return gain;
+ }
+
+ // BGM: 8-beat happy pattern in C major (walking bass + chord pad + arpeggio)
+ const BGM_BASS = [
+ // C major walking bass: C3, C3, G3, G3, F3, F3, G3, G3
+ { beat: 0, freq: NOTE_C3 },
+ { beat: 1, freq: NOTE_C3 },
+ { beat: 2, freq: NOTE_G3 },
+ { beat: 3, freq: NOTE_G3 },
+ { beat: 4, freq: NOTE_F3 },
+ { beat: 5, freq: NOTE_F3 },
+ { beat: 6, freq: NOTE_G3 },
+ { beat: 7, freq: NOTE_G3 }
+ ];
+
+ const BGM_CHORDS = [
+ // Chord change every 2 beats. Pad sustained across two beats.
+ { start: 0, end: 2, notes: [NOTE_C4, NOTE_E4, NOTE_G4] },
+ { start: 2, end: 4, notes: [NOTE_C4, NOTE_E4, NOTE_G4] },
+ { start: 4, end: 6, notes: [NOTE_F4, NOTE_A4, NOTE_C5] },
+ { start: 6, end: 8, notes: [NOTE_G4, NOTE_B4, NOTE_D5] }
+ ];
+
+ const BGM_ARP = [
+ // 1/8-note-ish arpeggio walking up the chord tones
+ { beat: 0.0, freq: NOTE_C5 },
+ { beat: 0.5, freq: NOTE_E5 },
+ { beat: 1.0, freq: NOTE_G5 },
+ { beat: 1.5, freq: NOTE_E5 },
+ { beat: 2.0, freq: NOTE_C5 },
+ { beat: 2.5, freq: NOTE_E5 },
+ { beat: 3.0, freq: NOTE_G5 },
+ { beat: 3.5, freq: NOTE_E5 },
+ { beat: 4.0, freq: NOTE_A5 },
+ { beat: 4.5, freq: NOTE_C6 },
+ { beat: 5.0, freq: NOTE_F5 },
+ { beat: 5.5, freq: NOTE_A5 },
+ { beat: 6.0, freq: NOTE_B5 },
+ { beat: 6.5, freq: NOTE_D5 },
+ { beat: 7.0, freq: NOTE_G5 },
+ { beat: 7.5, freq: NOTE_B5 }
+ ];
+
+ function scheduleBGMLoop(startTime) {
+ if (!audioCtx) return;
+ const loopLen = BGM_LOOP_BEATS * BGM_BEAT;
+ // Schedule 2 iterations ahead so timing stays sample-accurate
+ for (let iteration = 0; iteration < 2; iteration++) {
+ const iterStart = startTime + iteration * loopLen;
+ // Bass — short pulse each beat
+ for (const n of BGM_BASS) {
+ playNote({
+ type: 'sine',
+ freq: n.freq,
+ when: iterStart + n.beat * BGM_BEAT,
+ duration: BGM_BEAT * 0.9,
+ peak: 0.4,
+ attack: 0.005,
+ release: 0.08
+ });
+ }
+ // Chord pad — sustained over the 2 beats
+ for (const ch of BGM_CHORDS) {
+ const chordDur = (ch.end - ch.start) * BGM_BEAT;
+ for (const f of ch.notes) {
+ playNote({
+ type: 'sine',
+ freq: f,
+ when: iterStart + ch.start * BGM_BEAT,
+ duration: chordDur * 0.98,
+ peak: 0.18,
+ attack: 0.04,
+ release: chordDur * 0.3
+ });
+ }
+ }
+ // Arpeggio — soft triangle notes
+ for (const a of BGM_ARP) {
+ playNote({
+ type: 'triangle',
+ freq: a.freq,
+ when: iterStart + a.beat * BGM_BEAT,
+ duration: BGM_BEAT * 0.45,
+ peak: 0.14,
+ attack: 0.005,
+ release: 0.06
+ });
+ }
+ }
+ }
+
+ function startBGM() {
+ if (!audioCtx || bgmTimer !== null) return;
+ bgmStep = 0;
+ bgmNextNoteTime = audioCtx.currentTime + 0.05;
+ scheduleBGMLoop(bgmNextNoteTime);
+ // Heartbeat re-scheduling so we keep pushing notes ahead as the song goes on
+ bgmTimer = setInterval(() => {
+ if (!audioCtx) return;
+ const loopLen = BGM_LOOP_BEATS * BGM_BEAT;
+ // If next scheduled time is within one loop from now, schedule another round
+ if (audioCtx.currentTime + loopLen * 1.5 > bgmNextNoteTime + loopLen) {
+ bgmNextNoteTime += loopLen;
+ scheduleBGMLoop(bgmNextNoteTime);
+ }
+ }, 2000);
+ }
+
+ function stopBGM() {
+ if (bgmTimer !== null) {
+ clearInterval(bgmTimer);
+ bgmTimer = null;
+ }
+ bgmNextNoteTime = 0;
+ bgmStep = 0;
+ }
+
+ // ============== SFX ==============
+
+ // Collision: short low-pitched buzz (obstacle hit)
+ function playCollisionSFX() {
+ if (!audioCtx || !masterGain) return;
+ const t = audioCtx.currentTime;
+ // Layer 1: brief noise burst for impact
+ playNoise({ when: t, duration: 0.08, peak: 0.35, lowpass: 1800 });
+ // Layer 2: sawtooth at 110 Hz with quick decay
+ playNote({
+ type: 'sawtooth',
+ freq: 110,
+ when: t + 0.01,
+ duration: 0.2,
+ peak: 0.45,
+ attack: 0.005,
+ release: 0.18
+ });
+ // Layer 3: octave-up sawtooth for brightness, decays fast
+ playNote({
+ type: 'square',
+ freq: 220,
+ when: t + 0.005,
+ duration: 0.12,
+ peak: 0.18,
+ attack: 0.002,
+ release: 0.1
+ });
+ }
+
+ // Bomb: explosion — noise burst + descending sweep
+ function playBombSFX() {
+ if (!audioCtx || !masterGain) return;
+ const t = audioCtx.currentTime;
+ // Layer 1: noise burst (the crack)
+ playNoise({ when: t, duration: 0.18, peak: 0.55, lowpass: 1200 });
+ // Layer 2: descending sine sweep (300 → 50 Hz)
+ playSweep({
+ freqStart: 300,
+ freqEnd: 50,
+ when: t + 0.01,
+ duration: 0.4,
+ type: 'sine',
+ peak: 0.5
+ });
+ // Layer 3: low sine boom
+ playNote({
+ type: 'sine',
+ freq: 70,
+ when: t + 0.02,
+ duration: 0.35,
+ peak: 0.4,
+ attack: 0.005,
+ release: 0.3
+ });
+ }
+
+ // Star: bright ascending arpeggio (reward)
+ function playStarSFX() {
+ if (!audioCtx || !masterGain) return;
+ const t = audioCtx.currentTime;
+ const notes = [NOTE_C5, NOTE_E5, NOTE_G5, NOTE_C6];
+ const step = 0.038; // seconds between notes
+ for (let i = 0; i < notes.length; i++) {
+ playNote({
+ type: 'sine',
+ freq: notes[i],
+ when: t + i * step,
+ duration: step * 1.4,
+ peak: 0.4,
+ attack: 0.002,
+ release: step
+ });
+ }
+ // Tiny shimmer overtone
+ playNote({
+ type: 'triangle',
+ freq: NOTE_C6 * 2,
+ when: t + notes.length * step,
+ duration: 0.12,
+ peak: 0.15,
+ attack: 0.002,
+ release: 0.1
+ });
+ }
+
+ // Mute / unmute by writing to the master gain (smooth ramp to avoid click)
+ function setSoundEnabled(enabled) {
+ soundEnabled = enabled;
+ if (masterGain && audioCtx) {
+ const now = audioCtx.currentTime;
+ masterGain.gain.cancelScheduledValues(now);
+ masterGain.gain.setValueAtTime(masterGain.gain.value, now);
+ masterGain.gain.linearRampToValueAtTime(enabled ? 0.3 : 0, now + 0.05);
+ }
+ try { localStorage.setItem(SOUND_STORAGE_KEY, enabled ? '1' : '0'); } catch (err) {}
+ const btn = document.getElementById('sound-toggle');
+ if (btn) btn.textContent = enabled ? '🔊' : '🔇';
+ }
 
  // Player sprite (Sunshine Yellow dino on red bike, 1024x1024 with transparent background)
  const playerSprite = new Image();
@@ -650,7 +1025,7 @@
  const dy = player.y - obs.y;
  const dist = Math.sqrt(dx * dx + dy * dy);
  if (dist < (obs.r + (player.hitboxW + player.hitboxH) * 0.25)) {
- triggerGameOver();
+ triggerGameOver('collision');
  }
 
  if (obs.y > canvas.height + 60) {
@@ -702,9 +1077,10 @@
  if (item.isBomb) {
  // Touch bomb -> BOOM!
  createFloatingText(item.x, item.y, '💥 BOOM!', '#e74c3c');
- triggerGameOver();
+ triggerGameOver('bomb');
  } else {
  // Reward collected!
+ playStarSFX();
  bonusScore += 100;
  bonusElement.innerText = bonusScore;
  createFloatingText(item.x, item.y, '+100 ⭐', '#f1c40f');
@@ -865,6 +1241,7 @@
  gameLoopId = null;
  pauseTime = Date.now();
  pauseScreen.classList.add('active');
+ stopBGM();
  } else if (gameState === 'PAUSED') {
  const pausedDuration = Date.now() - pauseTime;
  startTime += pausedDuration;
@@ -877,13 +1254,22 @@
  document.querySelectorAll('.touch-btn.pressed').forEach(b => b.classList.remove('pressed'));
  pauseScreen.classList.remove('active');
  gameState = 'PLAYING';
+ startBGM();
  gameLoop();
  }
  }
 
- function triggerGameOver() {
+ function triggerGameOver(hitType = 'collision') {
  gameState = 'GAMEOVER';
  if (gameLoopId) cancelAnimationFrame(gameLoopId);
+
+ // Play appropriate collision sound before stopping the BGM
+ if (hitType === 'bomb') {
+ playBombSFX();
+ } else {
+ playCollisionSFX();
+ }
+ stopBGM();
 
  const timePts = score * 10;
  const distPts = Math.floor(distance * 2);
@@ -900,6 +1286,11 @@
 
  function startGame() {
  if (gameLoopId) cancelAnimationFrame(gameLoopId);
+
+ // Unlock / create AudioContext on first gameplay start (iOS-safe),
+ // then start the looping BGM. unlockAudio() is idempotent.
+ unlockAudio();
+ startBGM();
 
  resizeCanvas();
  gameState = 'PLAYING';
@@ -988,6 +1379,19 @@
  restartBtn.addEventListener('click', startGame);
  resumeBtn.addEventListener('click', () => { if (gameState === 'PAUSED') togglePause(); });
  window.addEventListener('resize', resizeCanvas);
+
+ // Sound toggle button — flip soundEnabled and apply via setSoundEnabled.
+ const soundToggleBtn = document.getElementById('sound-toggle');
+ if (soundToggleBtn) {
+ soundToggleBtn.addEventListener('click', (e) => {
+ e.preventDefault();
+ // AudioContext can only be (re-)opened after a user gesture, so unlock here too.
+ unlockAudio();
+ setSoundEnabled(!soundEnabled);
+ });
+ // Reflect restored preference on first paint (before AudioContext exists).
+ soundToggleBtn.textContent = soundEnabled ? '🔊' : '🔇';
+ }
 
  // Initial setup draw
  resizeCanvas();
