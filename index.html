@@ -177,7 +177,8 @@
  touch-action: manipulation;
  }
 
- .touch-btn:active {
+ .touch-btn:active,
+ .touch-btn.pressed {
  transform: scale(0.92);
  background: rgba(255, 234, 167, 0.9);
  }
@@ -709,7 +710,7 @@
  const dx = player.x - obs.x;
  const dy = player.y - obs.y;
  const dist = Math.sqrt(dx * dx + dy * dy);
- if (dist < (obs.r + player.hitboxW * 0.45)) {
+ if (dist < (obs.r + (player.hitboxW + player.hitboxH) * 0.25)) {
  triggerGameOver();
  }
 
@@ -731,11 +732,8 @@
  fallingItems.push({
  x: x,
  y: -40,
- targetY: player.y + (Math.random() - 0.5) * 80,
- fallProgress: 0,
  isBomb: isBomb,
- radius: isBomb ? 22 : 20,
- warningTimer: 0
+ radius: isBomb ? 22 : 20
  });
  }
 
@@ -744,10 +742,26 @@
  let item = fallingItems[i];
  item.y += (currentRoadSpeed * player.speedMultiplier) + 3.5;
 
- // Draw Warning Shadow on ground
+ // Draw Warning Shadow on ground (anchored to ground, not the falling item)
+ // Brighter & larger as the item approaches the ground; shrinks back to faint when item is far above.
  ctx.save();
- ctx.globalAlpha = 0.35;
- drawRoughCircle(ctx, item.x, item.y, item.radius * 1.2, item.isBomb ? '#e74c3c' : '#f1c40f', null, 0);
+ const groundY = player.baseY;
+ const dropDist = Math.max(1, groundY - (-40));
+ const proximity = 1 - Math.min(1, (groundY - item.y) / dropDist); // 0 far, 1 about to land
+ const shadowAlpha = 0.25 + proximity * 0.55;
+ const shadowRadius = item.radius * (1.0 + proximity * 0.4);
+ ctx.globalAlpha = shadowAlpha;
+ drawRoughCircle(ctx, item.x, groundY, shadowRadius, item.isBomb ? '#e74c3c' : '#f1c40f', null, 0);
+ // Upward chevron to point out the incoming threat
+ ctx.globalAlpha = shadowAlpha * 0.9;
+ ctx.strokeStyle = item.isBomb ? '#e74c3c' : '#f1c40f';
+ ctx.lineWidth = 3;
+ ctx.lineCap = 'round';
+ ctx.beginPath();
+ ctx.moveTo(item.x - 8, groundY - 14);
+ ctx.lineTo(item.x, groundY - 22);
+ ctx.lineTo(item.x + 8, groundY - 14);
+ ctx.stroke();
  ctx.restore();
 
  // Draw Sky Falling Item
@@ -767,7 +781,7 @@
  const dy = player.y - item.y;
  const dist = Math.sqrt(dx * dx + dy * dy);
 
- if (dist < (item.radius + player.hitboxW * 0.5)) {
+ if (dist < (item.radius + (player.hitboxW + player.hitboxH) * 0.25)) {
  if (item.isBomb) {
  // Touch bomb -> BOOM!
  createFloatingText(item.x, item.y, '💥 BOOM!', '#e74c3c');
@@ -861,6 +875,9 @@
  } else if (keys.down || player.speedMultiplier < 0.92) {
  trailColor = '#2ed573'; // Decelerating (Down Key): Green
  }
+
+ // Safety cap: trails self-decay to ~60 items in normal play; the cap is defensive.
+ if (player.trails.length > 200) player.trails.shift();
 
  // Continuously push tire tracks behind the rear wheel
  player.trails.push({
@@ -994,13 +1011,16 @@
  const btn = document.getElementById(btnId);
  if (!btn) return;
 
- const startPress = (e) => { e.preventDefault(); keys[keyName] = true; };
- const endPress = (e) => { e.preventDefault(); keys[keyName] = false; };
+ const startPress = (e) => { e.preventDefault(); keys[keyName] = true; btn.classList.add('pressed'); };
+ const endPress = (e) => { e.preventDefault(); keys[keyName] = false; btn.classList.remove('pressed'); };
 
  btn.addEventListener('touchstart', startPress, { passive: false });
  btn.addEventListener('touchend', endPress, { passive: false });
+ btn.addEventListener('touchcancel', endPress, { passive: false });
  btn.addEventListener('mousedown', startPress);
  btn.addEventListener('mouseup', endPress);
+ // Safety: if the user drags off the button mid-press, release cleanly.
+ btn.addEventListener('mouseleave', endPress);
  }
 
  bindTouchBtn('btn-left', 'left');
