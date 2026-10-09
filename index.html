@@ -543,6 +543,10 @@
  // Tiny Bike Frame & Handlebars
  drawCrayonLine(ctx, 0, -bikeLength / 2, 0, bikeLength / 2, '#e74c3c', 4);
  drawCrayonLine(ctx, -10, -8, 10, -8, '#2d3436', 3.5);
+ // Tiny bell on the right handlebar (rings while pedaling!)
+ drawRoughCircle(ctx, 7, -8, 2.8, '#f1c40f', '#2d3436', 1.2);
+ drawCrayonLine(ctx, 7, -8, 7, -5, '#2d3436', 1.2);
+ drawRoughCircle(ctx, 7, -5, 1.2, '#2d3436', null, 0);
 
  // --- PTERODACTYL (肥翼龍) BODY ---
  // Flapping Wings on left & right
@@ -613,9 +617,14 @@
  ctx.stroke();
  ctx.restore();
 
+ // Beak split line (down the middle of the yellow beak)
+ drawCrayonLine(ctx, 0, -22 + squish * 0.5, 0, -29 + squish * 0.5, '#e67e22', 2);
+
  // Helmet & Helmet Base
  drawRoughCircle(ctx, 0, -13 + squish * 0.5, 16.5, '#ff7675', '#d63031', 3);
  drawCrayonLine(ctx, -14, -10 + squish * 0.5, 14, -10 + squish * 0.5, '#ffffff', 3.5);
+ // Helmet chin strap (just under the rim, around the neck)
+ drawCrayonLine(ctx, -10, 5 + squish * 0.5, 10, 5 + squish * 0.5, '#d63031', 2.5);
 
  // Spinning Propeller on Top of Helmet!
  player.propellerAngle += 0.35 * player.speedMultiplier;
@@ -644,6 +653,9 @@
 
  // Cute Feathered Tail
  drawRoughCircle(ctx, 0, 26 + squish * 0.2, 7, '#a29bfe', '#6c5ce7', 2.5);
+ // Tail tuft accents (layered for a fluffy, mascot-feather look)
+ drawRoughCircle(ctx, -3, 30 + squish * 0.2, 4, '#6c5ce7', null, 0);
+ drawRoughCircle(ctx, 4, 29 + squish * 0.2, 3.5, '#ffeaa7', null, 0);
 
  // Pedaling Legs
  player.legAngle += 0.25 * player.speedMultiplier;
@@ -702,11 +714,39 @@
  if (obs.type === 'ROCK') {
  drawRoughCircle(ctx, obs.x, obs.y, obs.r, '#95a5a6', '#2d3436', 3);
  drawCrayonLine(ctx, obs.x - 8, obs.y - 4, obs.x + 4, obs.y + 6, '#7f8c8d', 3);
+ // Moss tufts on top (kid-friendly rock creature)
+ drawCrayonLine(ctx, obs.x - 7, obs.y - obs.r + 4, obs.x - 8, obs.y - obs.r - 4, '#26de81', 2.5);
+ drawCrayonLine(ctx, obs.x - 2, obs.y - obs.r + 2, obs.x - 2, obs.y - obs.r - 5, '#26de81', 2.5);
+ drawCrayonLine(ctx, obs.x + 5, obs.y - obs.r + 4, obs.x + 4, obs.y - obs.r - 3, '#26de81', 2.5);
+ // Kawaii eyes
+ drawRoughCircle(ctx, obs.x - 5, obs.y - 3, 2, '#2d3436', null, 0);
+ drawRoughCircle(ctx, obs.x + 5, obs.y - 3, 2, '#2d3436', null, 0);
+ // Happy smile (two short crayon strokes forming a little U)
+ drawCrayonLine(ctx, obs.x - 4, obs.y + 3, obs.x, obs.y + 6, '#2d3436', 2);
+ drawCrayonLine(ctx, obs.x, obs.y + 6, obs.x + 4, obs.y + 3, '#2d3436', 2);
+ // Small crack (personality detail)
+ drawCrayonLine(ctx, obs.x + 6, obs.y + 8, obs.x + 10, obs.y + 4, '#7f8c8d', 2);
  } else if (obs.type === 'CONE') {
  drawCrayonStar(ctx, obs.x, obs.y, 3, obs.r, obs.r * 0.5, '#e67e22', '#d35400');
  drawRoughCircle(ctx, obs.x, obs.y, 6, '#ffffff', null, 0);
+ // White reflective band across the cone body
+ drawCrayonLine(ctx, obs.x - 8, obs.y + 5, obs.x + 8, obs.y + 5, '#ffffff', 3);
+ // Tiny dark orange warning diamond in the center
+ drawCrayonStar(ctx, obs.x, obs.y, 4, 3.5, 1.5, '#d35400', null);
+ // Black rectangular base at the bottom
+ drawCrayonLine(ctx, obs.x - 11, obs.y + 11, obs.x + 11, obs.y + 11, '#2d3436', 2.5);
+ drawCrayonLine(ctx, obs.x - 11, obs.y + 16, obs.x + 11, obs.y + 16, '#2d3436', 2.5);
+ drawCrayonLine(ctx, obs.x - 11, obs.y + 11, obs.x - 11, obs.y + 16, '#2d3436', 2.5);
+ drawCrayonLine(ctx, obs.x + 11, obs.y + 11, obs.x + 11, obs.y + 16, '#2d3436', 2.5);
  } else { // Puddle
  drawRoughCircle(ctx, obs.x, obs.y, obs.r * 1.1, '#3498db', '#2980b9', 2);
+ // Inner ripple (lighter blue, like water spreading out)
+ drawRoughCircle(ctx, obs.x, obs.y, obs.r * 0.6, null, '#5dade2', 2);
+ // White sunlight highlight on upper-left
+ drawRoughCircle(ctx, obs.x - obs.r * 0.45, obs.y - obs.r * 0.45, 2.5, '#ffffff', null, 0);
+ // Tiny splash lines on the upper rim
+ drawCrayonLine(ctx, obs.x - 8, obs.y - obs.r * 0.8, obs.x - 6, obs.y - obs.r * 0.95, '#ffffff', 2);
+ drawCrayonLine(ctx, obs.x + 6, obs.y - obs.r * 0.9, obs.x + 9, obs.y - obs.r * 0.7, '#ffffff', 2);
  }
 
  // Collision check
