@@ -320,7 +320,14 @@
  let bgmTimer = null;
  let bgmNextNoteTime = 0;
  let bgmStep = 0;
- // Tracks every BGM note gain node scheduled, so stopBGM() can
+ // Speed usage statistics (ms accumulated in each speed bucket)
+let speedStats = { fast: 0, normal: 0, slow: 0 };
+let lastElapsedSec = 0;
+// Threshold for "normal" speed band; outside this counts as fast (up) or slow (down)
+const SPEED_NORMAL_MIN = 0.95;
+const SPEED_NORMAL_MAX = 1.05;
+
+// Tracks every BGM note gain node scheduled, so stopBGM() can
  // silence the in-flight Web Audio queue (prevents old + new BGM
  // overlap on fast game-over → restart).
  let bgmActiveGains = [];
@@ -1792,6 +1799,18 @@
  currentSpeedCap    = wProfile.speedCap;
  currentVisionAlpha = wProfile.visionAlpha;
 
+ // Accumulate speed usage statistics (uses elapsed delta so pause/resume
+ // doesn't double-count frozen time). Threshold: 0.95-1.05 = normal band.
+ const dtMs = (elapsed - lastElapsedSec) * 1000;
+ lastElapsedSec = elapsed;
+ if (player.speedMultiplier > SPEED_NORMAL_MAX) {
+ speedStats.fast += dtMs;
+ } else if (player.speedMultiplier < SPEED_NORMAL_MIN) {
+ speedStats.slow += dtMs;
+ } else {
+ speedStats.normal += dtMs;
+ }
+
  // Spawn obstacles
  obstacleTimer++;
  currentObstacleSpawnRate = Math.max(30, obstacleSpawnRateBase - Math.floor(score * 0.6));
@@ -1869,6 +1888,25 @@
  finalBonusElement.innerText = bonusScore;
  finalScoreElement.innerText = totalScore;
 
+ // Speed usage breakdown
+ const totalSpeedMs = speedStats.fast + speedStats.normal + speedStats.slow;
+ if (totalSpeedMs > 0) {
+ const fastPct   = Math.round(speedStats.fast   / totalSpeedMs * 100);
+ const normalPct = Math.round(speedStats.normal / totalSpeedMs * 100);
+ const slowPct   = Math.round(speedStats.slow   / totalSpeedMs * 100);
+ finalSpeedFastElement.innerText        = fastPct   + '%';
+ finalSpeedFastSecElement.innerText     = (speedStats.fast   / 1000).toFixed(1) + 's';
+ finalSpeedNormalElement.innerText      = normalPct + '%';
+ finalSpeedNormalSecElement.innerText   = (speedStats.normal / 1000).toFixed(1) + 's';
+ finalSpeedSlowElement.innerText        = slowPct   + '%';
+ finalSpeedSlowSecElement.innerText     = (speedStats.slow   / 1000).toFixed(1) + 's';
+ } else {
+ // Defensive: no play time accumulated (shouldn't happen, but avoid NaN display)
+ finalSpeedFastElement.innerText = '0%';     finalSpeedFastSecElement.innerText = '0.0s';
+ finalSpeedNormalElement.innerText = '0%';   finalSpeedNormalSecElement.innerText = '0.0s';
+ finalSpeedSlowElement.innerText = '0%';     finalSpeedSlowSecElement.innerText = '0.0s';
+ }
+
  gameOverScreen.classList.add('active');
  }
 
@@ -1920,6 +1958,10 @@
  currentFriction      = 0.84;
  currentSpeedCap      = 1.7;
  currentVisionAlpha   = 1.0;
+
+ // Reset speed usage statistics
+ speedStats    = { fast: 0, normal: 0, slow: 0 };
+ lastElapsedSec = 0;
 
  score = 0;
  distance = 0;
