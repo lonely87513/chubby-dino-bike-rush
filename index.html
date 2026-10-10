@@ -798,6 +798,450 @@
   };
  }
 
+ // ============================================================
+ // === Weather system (晴天 / 雨 / 雪 / 霧 / 雷雨) ===
+ // ============================================================
+
+ // ----- §3.1.A State declarations -----
+ const WEATHER_TYPES = ['sunny', 'rain', 'snow', 'fog', 'thunderstorm'];
+ const WEATHER_WEIGHTS = { sunny: 0.40, rain: 0.25, snow: 0.15, fog: 0.12, thunderstorm: 0.08 };
+ const WEATHER_WARMUP_MS = 10000;          // 開頭 10s 必定 sunny
+ const WEATHER_TRANSITION_DUR_MS = 3000;  // 過渡 3s 線性
+
+ let currentWeather        = 'sunny';
+ let startWeather          = 'sunny';
+ let targetWeather         = 'sunny';
+ let weatherTransitionT    = 1;
+ let nextWeatherChangeAtMs = WEATHER_WARMUP_MS;
+
+ // Particle systems（rain + snow only; fog/thunderstorm 由 overlay / 雨點負責）
+ let rainDrops   = [];
+ let snowFlakes  = [];
+
+ // Thunderstorm 控制
+ let lightningFlashUntil    = 0;          // performance.now() 為 base；>0 = active
+ let lightningJaggedPath    = [];         // [{x,y}] 鋸齒路徑
+ let nextLightningAtMs      = Infinity;
+ let nextThunderAtMs        = 0;          // (audio scheduling hook — 已併入 triggerLightning)
+
+ // Weather ambient audio（每個 weather 同時只有一個 ambient gain）
+ let weatherAmbientNodes    = [];
+
+ // 當前 gameplay modifier（每 frame 由 getCurrentWeatherProfile() 計算後寫入）
+ let currentFriction        = 0.84;
+ let currentSpeedCap        = 1.7;
+ let currentVisionAlpha     = 1.0;
+
+ // ----- §3.1.B Particle init / reset helpers -----
+ function initRainParticles(n) {
+  rainDrops = [];
+  for (let i = 0; i < n; i++) {
+   rainDrops.push({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    vx: -2,                                       // 斜左下（與 BGM key 風格一致）
+    vy: 8 + Math.random() * 6,                    // 8 – 14
+    len: 10 + Math.random() * 6,                  // 10 – 16
+    alpha: 0.4 + Math.random() * 0.4              // 0.4 – 0.8
+   });
+  }
+ }
+
+ function initSnowParticles(n) {
+  snowFlakes = [];
+  for (let i = 0; i < n; i++) {
+   snowFlakes.push({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    // 雪嘅 vx 喺 update 時加 random drift（唔係固定方向）
+    vx: 0.4 + Math.random() * 0.4,
+    vy: 0.8 + Math.random() * 0.8,                // 0.8 – 1.6
+    r: 2 + Math.random() * 2,                     // 2 – 4
+    alpha: 0.6 + Math.random() * 0.4              // 0.6 – 1.0
+   });
+  }
+ }
+
+ // 每個粒子 y > canvas.height 就 reset 到 y = 0（top recycling，防無窮增長）
+ function updateRainParticles() {
+  for (let i = 0; i < rainDrops.length; i++) {
+   const d = rainDrops[i];
+   d.x += d.vx;
+   d.y += d.vy;
+   if (d.y > canvas.height) {
+    d.y = -d.len;
+    d.x = Math.random() * canvas.width;
+   }
+   if (d.x < -10) d.x = canvas.width + 5;
+  }
+ }
+
+ function updateSnowParticles() {
+  for (let i = 0; i < snowFlakes.length; i++) {
+   const f = snowFlakes[i];
+   // random drift — 每幀輕微左右擺動
+   f.x += f.vx + (Math.random() - 0.5) * 0.6;
+   f.y += f.vy;
+   if (f.y > canvas.height + 4) {
+    f.y = -4;
+    f.x = Math.random() * canvas.width;
+   }
+   // 左右 wrap（防飄出 screen）
+   if (f.x < -6) f.x = canvas.width + 4;
+   if (f.x > canvas.width + 6) f.x = -4;
+  }
+ }
+
+ // 根據 intensity 動態補/刪粒子，確保過渡期間 fade in / out 自然
+ function ensureRainCount(targetN) {
+  if (rainDrops.length < targetN) {
+   for (let i = rainDrops.length; i < targetN; i++) {
+    rainDrops.push({
+     x: Math.random() * canvas.width,
+     y: Math.random() * canvas.height,
+     vx: -2,
+     vy: 8 + Math.random() * 6,
+     len: 10 + Math.random() * 6,
+     alpha: 0.4 + Math.random() * 0.4
+    });
+   }
+  } else if (rainDrops.length > targetN) {
+   rainDrops.length = targetN;
+  }
+ }
+ function ensureSnowCount(targetN) {
+  if (snowFlakes.length < targetN) {
+   for (let i = snowFlakes.length; i < targetN; i++) {
+    snowFlakes.push({
+     x: Math.random() * canvas.width,
+     y: Math.random() * canvas.height,
+     vx: 0.4 + Math.random() * 0.4,
+     vy: 0.8 + Math.random() * 0.8,
+     r: 2 + Math.random() * 2,
+     alpha: 0.6 + Math.random() * 0.4
+    });
+   }
+  } else if (snowFlakes.length > targetN) {
+   snowFlakes.length = targetN;
+  }
+ }
+
+ // 下次 change 嘅隨機 interval（per target）
+ const WEATHER_INTERVAL = {
+  sunny:        [15000, 30000],
+  rain:         [10000, 20000],
+  snow:         [12000, 22000],
+  fog:          [10000, 18000],
+  thunderstorm: [ 8000, 16000]
+ };
+ function getNextChangeInterval(target) {
+  const range = WEATHER_INTERVAL[target] || [10000, 20000];
+  return range[0] + Math.random() * (range[1] - range[0]);
+ }
+
+ // Weighted pick（排除 current — 同 current 就再當 new，避免 short-circuit）
+ function pickWeightedWeather(exclude) {
+  let r = Math.random();
+  let acc = 0;
+  for (let i = 0; i < WEATHER_TYPES.length; i++) {
+   const w = WEATHER_TYPES[i];
+   if (w === exclude) continue;
+   acc += WEATHER_WEIGHTS[w];
+   if (r < acc) return w;
+  }
+  // 後備：exclude 以外嘅第一個
+  for (let i = 0; i < WEATHER_TYPES.length; i++) {
+   if (WEATHER_TYPES[i] !== exclude) return WEATHER_TYPES[i];
+  }
+  return 'sunny';
+ }
+
+ // ----- §3.1.F Profile getters -----
+ function getWeatherProfile(w) {
+  switch (w) {
+   case 'rain':
+    return { friction: 0.92, speedCap: 1.50, visionAlpha: 1.0, tint: 0.20, fog: 0.00, rainIntensity: 180, snowIntensity: 0, lightning: 0 };
+   case 'snow':
+    return { friction: 1.08, speedCap: 1.60, visionAlpha: 1.0, tint: 0.15, fog: 0.00, rainIntensity: 0,   snowIntensity: 150, lightning: 0 };
+   case 'fog':
+    return { friction: 0.84, speedCap: 1.70, visionAlpha: 0.55, tint: 0.00, fog: 0.45, rainIntensity: 0,   snowIntensity: 0,   lightning: 0 };
+   case 'thunderstorm':
+    return { friction: 0.95, speedCap: 1.55, visionAlpha: 0.75, tint: 0.30, fog: 0.00, rainIntensity: 260, snowIntensity: 0,   lightning: 1 };
+   case 'sunny':
+   default:
+    return { friction: 0.84, speedCap: 1.70, visionAlpha: 1.0, tint: 0.00, fog: 0.00, rainIntensity: 0,   snowIntensity: 0,   lightning: 0 };
+  }
+ }
+
+ function getCurrentWeatherProfile() {
+  const a = getWeatherProfile(startWeather);
+  const b = getWeatherProfile(targetWeather);
+  const t = weatherTransitionT;
+  return {
+   friction:      a.friction    + (b.friction    - a.friction)    * t,
+   speedCap:      a.speedCap    + (b.speedCap    - a.speedCap)    * t,
+   visionAlpha:   a.visionAlpha + (b.visionAlpha - a.visionAlpha) * t,
+   tint:          a.tint        + (b.tint        - a.tint)        * t,
+   fog:           a.fog         + (b.fog         - a.fog)         * t,
+   rainIntensity: Math.round(a.rainIntensity + (b.rainIntensity - a.rainIntensity) * t),
+   snowIntensity: Math.round(a.snowIntensity + (b.snowIntensity - a.snowIntensity) * t),
+   // lightning 喺過渡中段（>0.5）切到 target，避免音頻/視覺雙重觸發
+   lightning:     t > 0.5 ? b.lightning : a.lightning
+  };
+ }
+
+ // ----- §3.1.E Audio: start / fadeOut / thunder / lightning trigger -----
+ function startWeatherAudio(weather) {
+  // 任何切換都先 fade 上一個 ambient
+  fadeOutWeatherAmbient();
+  if (!audioCtx || !masterGain) return;
+  if (weather === 'sunny') return;
+
+  if (weather === 'rain' || weather === 'thunderstorm') {
+   const src = audioCtx.createBufferSource();
+   src.buffer = getNoiseBuffer();
+   src.loop = true;
+   const filter = audioCtx.createBiquadFilter();
+   filter.type = 'lowpass';
+   filter.frequency.value = weather === 'thunderstorm' ? 1500 : 1200;
+   const gain = audioCtx.createGain();
+   gain.gain.setValueAtTime(0, audioCtx.currentTime);
+   gain.gain.linearRampToValueAtTime(weather === 'thunderstorm' ? 0.08 : 0.06, audioCtx.currentTime + 1.5);
+   src.connect(filter);
+   filter.connect(gain);
+   gain.connect(masterGain);
+   src.start();
+   weatherAmbientNodes.push({ gain, src, type: 'rain' });
+  } else if (weather === 'snow' || weather === 'fog') {
+   const src = audioCtx.createBufferSource();
+   src.buffer = getNoiseBuffer();
+   src.loop = true;
+   const filter = audioCtx.createBiquadFilter();
+   filter.type = 'lowpass';
+   filter.frequency.value = weather === 'fog' ? 400 : 600;
+   const gain = audioCtx.createGain();
+   gain.gain.setValueAtTime(0, audioCtx.currentTime);
+   gain.gain.linearRampToValueAtTime(0.05, audioCtx.currentTime + 1.5);
+   src.connect(filter);
+   filter.connect(gain);
+   gain.connect(masterGain);
+   src.start();
+   weatherAmbientNodes.push({ gain, src, type: 'wind' });
+  }
+ }
+
+ function fadeOutWeatherAmbient() {
+  if (!weatherAmbientNodes.length) return;
+  const now = audioCtx ? audioCtx.currentTime : 0;
+  for (let i = 0; i < weatherAmbientNodes.length; i++) {
+   const node = weatherAmbientNodes[i];
+   try {
+    if (audioCtx) {
+     node.gain.gain.cancelScheduledValues(now);
+     // 用當前 value 起 ramp（避免 click）
+     const curVal = (typeof node.gain.gain.value === 'number') ? node.gain.gain.value : 0;
+     node.gain.gain.setValueAtTime(curVal, now);
+     node.gain.gain.linearRampToValueAtTime(0, now + 0.8);
+    }
+    const src = node.src;
+    // 0.8s ramp + 0.2s buffer；之後 stop
+    setTimeout(() => { try { src.stop(); } catch (e) {} }, 50);
+   } catch (e) {
+    // swallow — node 可能已經被瀏覽器釋放
+   }
+  }
+  weatherAmbientNodes = [];
+ }
+
+ function playThunder(delayMs = 0) {
+  if (!audioCtx || !masterGain) return;
+  const when = audioCtx.currentTime + delayMs / 1000;
+  // Body: descending sweep 80Hz → 30Hz, 1.5s
+  playSweep({ freqStart: 80, freqEnd: 30, when, duration: 1.5, type: 'sine', peak: 0.4 });
+  // 加少少 lowpass noise 體感
+  playNoise({ when, duration: 1.2, peak: 0.2, lowpass: 200 });
+ }
+
+ function triggerLightning(elapsedMs) {
+  if (!audioCtx || !masterGain) {
+   // 無 audio context 時，仍做視覺閃光
+   lightningFlashUntil = performance.now() + 100;
+  } else {
+   lightningFlashUntil = performance.now() + 100;
+  }
+  // 生成 jagged top-to-bottom path
+  lightningJaggedPath = [{ x: Math.random() * canvas.width, y: 0 }];
+  let cx = lightningJaggedPath[0].x;
+  let cy = 0;
+  while (cy < canvas.height) {
+   cy += 30 + Math.random() * 40;
+   cx += (Math.random() - 0.5) * 60;
+   lightningJaggedPath.push({ x: cx, y: cy });
+  }
+  // 排下一次 lightning（3-8s 之後）
+  nextLightningAtMs = elapsedMs + 3000 + Math.random() * 5000;
+  // Thunder 喺閃電後 0.3-2s 延遲
+  const thunderDelay = 300 + Math.random() * 1700;
+  playThunder(thunderDelay);
+ }
+
+ // ----- §3.1.C Main update loop -----
+ function updateWeather(elapsedMs) {
+  // 1) 過渡 t 漸進（線性，16ms / 3000ms ≈ 0.533% / frame）
+  if (weatherTransitionT < 1) {
+   weatherTransitionT = Math.min(1, weatherTransitionT + 16 / WEATHER_TRANSITION_DUR_MS);
+   // 到達 1 時 commit 進 currentWeather + 啟動新 ambient audio
+   if (weatherTransitionT >= 1) {
+    currentWeather = targetWeather;
+    startWeatherAudio(currentWeather);
+   }
+  }
+
+  // 2) 到時揀新 target（過 warmup + 過渡已完成）
+  if (elapsedMs >= nextWeatherChangeAtMs && weatherTransitionT >= 1 && elapsedMs > WEATHER_WARMUP_MS) {
+   const next = pickWeightedWeather(currentWeather);
+   startWeather     = currentWeather;
+   targetWeather    = next;
+   weatherTransitionT = 0;
+   const intervalMs = getNextChangeInterval(next);
+   nextWeatherChangeAtMs = elapsedMs + WEATHER_TRANSITION_DUR_MS + intervalMs;
+   if (next === 'thunderstorm') {
+    nextLightningAtMs = elapsedMs + 2000 + Math.random() * 3000;
+   } else {
+    nextLightningAtMs = Infinity;
+   }
+  }
+
+  // 3) 動態補 / 刪 particles（per intensity）
+  const profile = getCurrentWeatherProfile();
+  if (profile.rainIntensity > 0) {
+   ensureRainCount(profile.rainIntensity);
+   updateRainParticles();
+  } else if (rainDrops.length > 0) {
+   rainDrops.length = 0;
+  }
+  if (profile.snowIntensity > 0) {
+   ensureSnowCount(profile.snowIntensity);
+   updateSnowParticles();
+  } else if (snowFlakes.length > 0) {
+   snowFlakes.length = 0;
+  }
+
+  // 4) Thunderstorm lightning trigger
+  if (currentWeather === 'thunderstorm' && elapsedMs >= nextLightningAtMs) {
+   triggerLightning(elapsedMs);
+  }
+  if (lightningFlashUntil > 0 && performance.now() >= lightningFlashUntil) {
+   lightningFlashUntil = 0;
+  }
+
+  // 5) Debug instrumentation（暫時，commit 保留，日後由 Nathan 清理）
+  const prevW = window.__weather;
+  window.__weather = {
+   current:      currentWeather,
+   start:        startWeather,
+   target:       targetWeather,
+   t:            weatherTransitionT,
+   friction:     currentFriction,
+   speedCap:     currentSpeedCap,
+   visionAlpha:  currentVisionAlpha,
+   rainDrops:    rainDrops.length,
+   snowFlakes:   snowFlakes.length,
+   nextChangeAt: nextWeatherChangeAtMs,
+   lightningNext: nextLightningAtMs,
+   changeCount:  prevW ? prevW.changeCount + (targetWeather !== prevW.target ? 1 : 0) : 0
+  };
+ }
+
+ // ----- §3.1.D Render overlay -----
+ function drawWeatherOverlay() {
+  const profile = getCurrentWeatherProfile();
+  const tintAlpha = profile.tint;
+  const fogAlpha = profile.fog;
+
+  // 1) 背景 tint overlay（rain / snow / thunderstorm）
+  if (tintAlpha > 0.01) {
+   ctx.save();
+   // thunderstorm 用深灰；rain / snow 用較淺嘅藍灰
+   const baseRGB = (currentWeather === 'thunderstorm' || targetWeather === 'thunderstorm') ? '60, 65, 80' : '80, 90, 110';
+   ctx.fillStyle = `rgba(${baseRGB}, ${tintAlpha})`;
+   ctx.fillRect(0, 0, canvas.width, canvas.height);
+   ctx.restore();
+  }
+
+  // 2) Rain particles（per-droplet alpha * 過渡 intensity ratio，fade in/out 平滑）
+  if (rainDrops.length > 0) {
+   ctx.save();
+   ctx.strokeStyle = 'rgba(180, 200, 230, 0.6)';
+   ctx.lineWidth = 1.5;
+   ctx.lineCap = 'round';
+   // rain intensity ratio：transition 中嘅 fade（profile.rainIntensity / target intensity）
+   // 用 rainDrops.length / 260 做粗略 fade ratio（過渡期間 linear）
+   const fade = Math.min(1, rainDrops.length / Math.max(1, profile.rainIntensity));
+   for (let i = 0; i < rainDrops.length; i++) {
+    const d = rainDrops[i];
+    ctx.globalAlpha = d.alpha * fade;
+    ctx.beginPath();
+    ctx.moveTo(d.x, d.y);
+    ctx.lineTo(d.x + d.vx, d.y + d.vy);
+    ctx.stroke();
+   }
+   ctx.globalAlpha = 1;
+   ctx.restore();
+  }
+
+  // 3) Snow particles
+  if (snowFlakes.length > 0) {
+   ctx.save();
+   ctx.fillStyle = '#ffffff';
+   const fade = Math.min(1, snowFlakes.length / Math.max(1, profile.snowIntensity));
+   for (let i = 0; i < snowFlakes.length; i++) {
+    const f = snowFlakes[i];
+    ctx.globalAlpha = f.alpha * fade;
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+    ctx.fill();
+   }
+   ctx.globalAlpha = 1;
+   ctx.restore();
+  }
+
+  // 4) Fog overlay（上方濃 0.85 → 下方 0.1 漸變）
+  if (fogAlpha > 0.01) {
+   ctx.save();
+   const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+   grad.addColorStop(0,   `rgba(220, 220, 230, ${fogAlpha * 0.85})`);
+   grad.addColorStop(0.6, `rgba(220, 220, 230, ${fogAlpha * 0.4})`);
+   grad.addColorStop(1,   `rgba(220, 220, 230, ${fogAlpha * 0.1})`);
+   ctx.fillStyle = grad;
+   ctx.fillRect(0, 0, canvas.width, canvas.height);
+   ctx.restore();
+  }
+
+  // 5) Lightning flash + jagged line
+  if (lightningFlashUntil > 0) {
+   const remain = lightningFlashUntil - performance.now();
+   if (remain > 0) {
+    const flashAlpha = Math.min(0.5, remain / 100);
+    ctx.save();
+    ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Jagged line
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (let i = 0; i < lightningJaggedPath.length; i++) {
+     const p = lightningJaggedPath[i];
+     if (i === 0) ctx.moveTo(p.x, p.y);
+     else ctx.lineTo(p.x, p.y);
+    }
+    ctx.stroke();
+    ctx.restore();
+   }
+  }
+ }
+
  // Entities
  let obstacles = [];
  let sceneryTrees = [];
@@ -1061,6 +1505,10 @@
  const roadWidth = getCurrentRoadWidth();
  const roadLeft = getCurrentRoadLeft();
 
+ // Apply weather visionAlpha — fog / thunderstorm 會降低障礙可見度
+ ctx.save();
+ ctx.globalAlpha = currentVisionAlpha;
+
  for (let i = obstacles.length - 1; i >= 0; i--) {
  let obs = obstacles[i];
  obs.y += currentRoadSpeed * player.speedMultiplier;
@@ -1131,6 +1579,7 @@
  obstacles.splice(i, 1);
  }
  }
+ ctx.restore();
  }
 
  function spawnFallingItem() {
@@ -1151,6 +1600,10 @@
  }
 
  function updateAndDrawFallingItems() {
+ // Apply weather visionAlpha（fog 期間掉落物淡出）
+ ctx.save();
+ ctx.globalAlpha = currentVisionAlpha;
+
  for (let i = fallingItems.length - 1; i >= 0; i--) {
  let item = fallingItems[i];
  item.y += (currentRoadSpeed * player.speedMultiplier) + 3.5;
@@ -1192,6 +1645,7 @@
  fallingItems.splice(i, 1);
  }
  }
+ ctx.restore();
  }
 
  function createFloatingText(x, y, text, color) {
@@ -1233,7 +1687,7 @@
  if (keys.left) player.velX -= 0.85;
  if (keys.right) player.velX += 0.85;
 
- player.velX *= 0.84; // Inertia damping
+ player.velX *= currentFriction; // Inertia damping (weather-modulated)
  player.x += player.velX;
 
  // Clamp inside road
@@ -1247,7 +1701,7 @@
 
  // Acceleration / Deceleration (Up / Down)
  if (keys.up) {
- player.speedMultiplier = Math.min(player.speedMultiplier + 0.03, 1.7);
+ player.speedMultiplier = Math.min(player.speedMultiplier + 0.03, currentSpeedCap);
  player.targetY = player.baseY - 40;
  } else if (keys.down) {
  player.speedMultiplier = Math.max(player.speedMultiplier - 0.03, 0.6);
@@ -1310,6 +1764,13 @@
  // Update road width transition (affects all render/spawn/clamp paths)
  updateRoadWidth(elapsed * 1000);
 
+ // Update weather system + sync gameplay modifiers (friction / speedCap / visionAlpha)
+ updateWeather(elapsed * 1000);
+ const wProfile = getCurrentWeatherProfile();
+ currentFriction    = wProfile.friction;
+ currentSpeedCap    = wProfile.speedCap;
+ currentVisionAlpha = wProfile.visionAlpha;
+
  // Spawn obstacles
  obstacleTimer++;
  currentObstacleSpawnRate = Math.max(30, obstacleSpawnRateBase - Math.floor(score * 0.6));
@@ -1331,6 +1792,8 @@
  updateAndDrawFallingItems();
  drawPlayer();
  updateAndDrawFloatingTexts();
+ // Weather overlay goes LAST so it sits on top of everything (particles / fog / lightning flash)
+ drawWeatherOverlay();
 
  gameLoopId = requestAnimationFrame(gameLoop);
  }
@@ -1417,6 +1880,22 @@
  targetRoadWidthRatio = ROAD_WIDTH_BASE;
  roadTransitionT      = 1;
  nextRoadChangeAtMs   = 15000;
+
+ // Reset weather state: 10s sunny warmup, fade out any lingering ambient audio
+ currentWeather       = 'sunny';
+ startWeather         = 'sunny';
+ targetWeather        = 'sunny';
+ weatherTransitionT   = 1;
+ nextWeatherChangeAtMs = WEATHER_WARMUP_MS;
+ rainDrops            = [];
+ snowFlakes           = [];
+ lightningFlashUntil  = 0;
+ lightningJaggedPath  = [];
+ nextLightningAtMs    = Infinity;
+ fadeOutWeatherAmbient();
+ currentFriction      = 0.84;
+ currentSpeedCap      = 1.7;
+ currentVisionAlpha   = 1.0;
 
  score = 0;
  distance = 0;
