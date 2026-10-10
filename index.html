@@ -320,6 +320,10 @@
  let bgmTimer = null;
  let bgmNextNoteTime = 0;
  let bgmStep = 0;
+ // Tracks every BGM note gain node scheduled, so stopBGM() can
+ // silence the in-flight Web Audio queue (prevents old + new BGM
+ // overlap on fast game-over → restart).
+ let bgmActiveGains = [];
  const BGM_BPM = 124;
  const BGM_BEAT = 60 / BGM_BPM; // seconds per beat
  const BGM_LOOP_BEATS = 8; // loop length in beats
@@ -493,7 +497,7 @@
  const iterStart = startTime + iteration * loopLen;
  // Bass — short pulse each beat
  for (const n of BGM_BASS) {
- playNote({
+ const gain = playNote({
  type: 'sine',
  freq: n.freq,
  when: iterStart + n.beat * BGM_BEAT,
@@ -502,12 +506,13 @@
  attack: 0.005,
  release: 0.08
  });
+ if (gain) bgmActiveGains.push(gain);
  }
  // Chord pad — sustained over the 2 beats
  for (const ch of BGM_CHORDS) {
  const chordDur = (ch.end - ch.start) * BGM_BEAT;
  for (const f of ch.notes) {
- playNote({
+ const gain = playNote({
  type: 'sine',
  freq: f,
  when: iterStart + ch.start * BGM_BEAT,
@@ -516,11 +521,12 @@
  attack: 0.04,
  release: chordDur * 0.3
  });
+ if (gain) bgmActiveGains.push(gain);
  }
  }
  // Arpeggio — soft triangle notes
  for (const a of BGM_ARP) {
- playNote({
+ const gain = playNote({
  type: 'triangle',
  freq: a.freq,
  when: iterStart + a.beat * BGM_BEAT,
@@ -529,6 +535,7 @@
  attack: 0.005,
  release: 0.06
  });
+ if (gain) bgmActiveGains.push(gain);
  }
  }
  }
@@ -555,6 +562,20 @@
  clearInterval(bgmTimer);
  bgmTimer = null;
  }
+ // Ramp down any BGM notes already queued in the Web Audio thread.
+ // Without this, a fast game-over → restart would overlap old + new BGM
+ // for up to ~16s (the 2-iteration pre-schedule window).
+ if (audioCtx) {
+ const t = audioCtx.currentTime;
+ for (const gain of bgmActiveGains) {
+ try {
+ gain.gain.cancelScheduledValues(t);
+ gain.gain.setValueAtTime(gain.gain.value, t);
+ gain.gain.linearRampToValueAtTime(0.0001, t + 0.05);
+ } catch (e) { /* node may have already stopped — ignore */ }
+ }
+ }
+ bgmActiveGains = [];
  bgmNextNoteTime = 0;
  bgmStep = 0;
  }
@@ -1834,6 +1855,9 @@
  playCollisionSFX();
  }
  stopBGM();
+ // Also fade out any weather ambient (rain / wind) playing, so the
+ // game-over screen is quiet. (Restart path re-runs this via startGame.)
+ if (typeof fadeOutWeatherAmbient === 'function') fadeOutWeatherAmbient();
 
  const timePts = score * 10;
  const distPts = Math.floor(distance * 2);
