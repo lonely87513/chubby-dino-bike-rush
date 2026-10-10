@@ -294,6 +294,11 @@
  <p style="margin: 6px 0;">⭐ 收集獎賞: <span id="final-bonus" style="font-weight:bold; color:#fdcb6e;">0</span> 分</p>
  <hr style="border: 0; border-top: 2px dashed #ffeaa7; margin: 8px 0;">
  <p style="margin: 6px 0; font-size: 1.25rem; font-weight: bold; color: #6c5ce7;">🏆 總得分數: <span id="final-score">0</span> 分</p>
+ <hr style="border: 0; border-top: 2px dashed #ffeaa7; margin: 8px 0;">
+ <p style="margin: 6px 0; font-size: 0.95rem;">🏃 <b>速度使用：</b></p>
+ <p style="margin: 4px 0; padding-left: 12px; font-size: 0.9rem;">⬆️ 加速: <span id="final-speed-fast" style="font-weight:bold; color:#ff4757;">0%</span> (<span id="final-speed-fast-sec" style="color:#ff4757;">0.0s</span>)</p>
+ <p style="margin: 4px 0; padding-left: 12px; font-size: 0.9rem;">➡️ 正常: <span id="final-speed-normal" style="font-weight:bold; color:#0984e3;">0%</span> (<span id="final-speed-normal-sec" style="color:#0984e3;">0.0s</span>)</p>
+ <p style="margin: 4px 0; padding-left: 12px; font-size: 0.9rem;">⬇️ 減速: <span id="final-speed-slow" style="font-weight:bold; color:#2ed573;">0%</span> (<span id="final-speed-slow-sec" style="color:#2ed573;">0.0s</span>)</p>
  </div>
  <button id="restart-btn">再玩一次</button>
  </div>
@@ -717,6 +722,12 @@ const SPEED_NORMAL_MAX = 1.05;
  const finalDistPtsElement = document.getElementById('final-dist-pts');
  const finalBonusElement = document.getElementById('final-bonus');
  const finalScoreElement = document.getElementById('final-score');
+const finalSpeedFastElement = document.getElementById('final-speed-fast');
+const finalSpeedFastSecElement = document.getElementById('final-speed-fast-sec');
+const finalSpeedNormalElement = document.getElementById('final-speed-normal');
+const finalSpeedNormalSecElement = document.getElementById('final-speed-normal-sec');
+const finalSpeedSlowElement = document.getElementById('final-speed-slow');
+const finalSpeedSlowSecElement = document.getElementById('final-speed-slow-sec');
 
  const startBtn = document.getElementById('start-btn');
  const restartBtn = document.getElementById('restart-btn');
