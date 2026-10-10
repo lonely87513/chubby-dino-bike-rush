@@ -732,6 +732,72 @@
  const obstacleSpawnRateBase = 65;
  let currentObstacleSpawnRate = obstacleSpawnRateBase;
 
+ // === Road width dynamic state ===
+ // Road width is dynamic; ranges between ROAD_WIDTH_MIN and ROAD_WIDTH_MAX.
+ // Default ROAD_WIDTH_BASE; transitions every 6-12s (after 15s warmup).
+ const ROAD_WIDTH_BASE = 0.65;
+ const ROAD_WIDTH_MIN  = 0.45;
+ const ROAD_WIDTH_MAX  = 0.85;
+ let currentRoadWidthRatio = ROAD_WIDTH_BASE; // interpolated, what render sees
+ let startRoadWidthRatio  = ROAD_WIDTH_BASE;  // transition 起點
+ let targetRoadWidthRatio = ROAD_WIDTH_BASE;  // transition 終點
+ let roadTransitionT      = 1;               // 0→1; 1 = 已到達
+ let nextRoadChangeAtMs   = Infinity;        // 第一個 change 嘅時間點
+ const ROAD_TRANSITION_DUR_MS = 1500;
+
+ // Helper: current road geometry (read by render / spawn / clamp)
+ function getCurrentRoadWidth() {
+  return canvas.width * currentRoadWidthRatio;
+ }
+ function getCurrentRoadLeft() {
+  return (canvas.width - getCurrentRoadWidth()) / 2;
+ }
+
+ // === Road width transition update ===
+ // Called every frame from gameLoop(). Picks new targets on a schedule;
+ // lerps current ratio toward target with ease-out cubic over 1500ms.
+ function updateRoadWidth(elapsedMs) {
+  // 尚未到達下次變化時間 → 維持 in-flight 過渡；唔揀新 target。
+  if (elapsedMs >= nextRoadChangeAtMs && roadTransitionT >= 1) {
+   // 揀新嘅 target。35s 前用溫和 pool；35s+ 用全範圍。
+   let pool;
+   if (elapsedMs < 35000) {
+    pool = [0.55, 0.60, 0.65, 0.70, 0.75];
+   } else {
+    pool = [0.45, 0.50, 0.55, 0.65, 0.75, 0.80, 0.85];
+   }
+   // 確保唔揀同 current 相同嘅值（避免 noop）
+   do {
+    targetRoadWidthRatio = pool[Math.floor(Math.random() * pool.length)];
+   } while (targetRoadWidthRatio === currentRoadWidthRatio && pool.length > 1);
+
+   startRoadWidthRatio = currentRoadWidthRatio;
+   roadTransitionT = 0;
+   // 排下次 change 時間：transition 完成後 + 6-12s 隨機間隔
+   const intervalMs = 6000 + Math.random() * 6000;
+   nextRoadChangeAtMs = elapsedMs + ROAD_TRANSITION_DUR_MS + intervalMs;
+  }
+
+  // Lerp 過渡（ease-out cubic）
+  if (roadTransitionT < 1) {
+   roadTransitionT = Math.min(1, roadTransitionT + 16 / ROAD_TRANSITION_DUR_MS); // 假設 ~60fps
+   const e = 1 - Math.pow(1 - roadTransitionT, 3); // ease-out cubic
+   currentRoadWidthRatio =
+    startRoadWidthRatio + (targetRoadWidthRatio - startRoadWidthRatio) * e;
+  }
+
+  // Debug instrumentation（暫時，commit 保留，日後由 Nathan 清理）
+  const prev = window.__road;
+  window.__road = {
+   currentRatio: currentRoadWidthRatio,
+   startRatio:  startRoadWidthRatio,
+   targetRatio: targetRoadWidthRatio,
+   transitionT:  roadTransitionT,
+   nextChangeAt: nextRoadChangeAtMs,
+   changeCount:  prev ? prev.changeCount + (targetRoadWidthRatio !== prev.targetRatio ? 1 : 0) : 0
+  };
+ }
+
  // Entities
  let obstacles = [];
  let sceneryTrees = [];
@@ -863,8 +929,8 @@
  }
 
  function drawBackgroundAndRoad() {
- const roadWidth = canvas.width * 0.65;
- const roadLeft = (canvas.width - roadWidth) / 2;
+ const roadWidth = getCurrentRoadWidth();
+ const roadLeft = getCurrentRoadLeft();
 
  // Grass Background
  ctx.fillStyle = '#badc58';
@@ -971,8 +1037,8 @@
  }
 
  function spawnObstacle() {
- const roadWidth = canvas.width * 0.65;
- const roadLeft = (canvas.width - roadWidth) / 2;
+ const roadWidth = getCurrentRoadWidth();
+ const roadLeft = getCurrentRoadLeft();
  const margin = 35;
  const x = roadLeft + margin + Math.random() * (roadWidth - margin * 2);
 
@@ -992,8 +1058,8 @@
  }
 
  function updateAndDrawObstacles() {
- const roadWidth = canvas.width * 0.65;
- const roadLeft = (canvas.width - roadWidth) / 2;
+ const roadWidth = getCurrentRoadWidth();
+ const roadLeft = getCurrentRoadLeft();
 
  for (let i = obstacles.length - 1; i >= 0; i--) {
  let obs = obstacles[i];
@@ -1070,8 +1136,8 @@
  function spawnFallingItem() {
  if (score < 20) return; // Only spawn items after 20 seconds
 
- const roadWidth = canvas.width * 0.65;
- const roadLeft = (canvas.width - roadWidth) / 2;
+ const roadWidth = getCurrentRoadWidth();
+ const roadLeft = getCurrentRoadLeft();
  const x = roadLeft + 30 + Math.random() * (roadWidth - 60);
 
  // 40% Bomb, 60% Reward Star
@@ -1158,8 +1224,8 @@
  }
 
  function updatePlayer() {
- const roadWidth = canvas.width * 0.65;
- const roadLeft = (canvas.width - roadWidth) / 2;
+ const roadWidth = getCurrentRoadWidth();
+ const roadLeft = getCurrentRoadLeft();
  const minX = roadLeft + player.width * 0.4;
  const maxX = roadLeft + roadWidth - player.width * 0.4;
 
@@ -1240,6 +1306,9 @@
 
  // Update entities
  updatePlayer();
+
+ // Update road width transition (affects all render/spawn/clamp paths)
+ updateRoadWidth(elapsed * 1000);
 
  // Spawn obstacles
  obstacleTimer++;
@@ -1341,6 +1410,13 @@
  sceneryTrees = [];
  fallingItems = [];
  floatingTexts = [];
+
+ // Reset road width dynamic state to base; 15s warmup before first change
+ currentRoadWidthRatio = ROAD_WIDTH_BASE;
+ startRoadWidthRatio  = ROAD_WIDTH_BASE;
+ targetRoadWidthRatio = ROAD_WIDTH_BASE;
+ roadTransitionT      = 1;
+ nextRoadChangeAtMs   = 15000;
 
  score = 0;
  distance = 0;
