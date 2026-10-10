@@ -295,6 +295,13 @@
  <hr style="border: 0; border-top: 2px dashed #ffeaa7; margin: 8px 0;">
  <p style="margin: 6px 0; font-size: 1.25rem; font-weight: bold; color: #6c5ce7;">🏆 總得分數: <span id="final-score">0</span> 分</p>
  <hr style="border: 0; border-top: 2px dashed #ffeaa7; margin: 8px 0;">
+ <p style="margin: 6px 0; font-size: 0.95rem;">🌦️ <b>天氣分布：</b></p>
+ <p style="margin: 4px 0; padding-left: 12px; font-size: 0.9rem;">☀️ 晴天: <span id="final-w-sunny" style="font-weight:bold; color:#fdcb6e;">0%</span> (<span id="final-w-sunny-sec" style="color:#fdcb6e;">0.0s</span>)</p>
+ <p style="margin: 4px 0; padding-left: 12px; font-size: 0.9rem;">🌧️ 雨天: <span id="final-w-rain" style="font-weight:bold; color:#74b9ff;">0%</span> (<span id="final-w-rain-sec" style="color:#74b9ff;">0.0s</span>)</p>
+ <p style="margin: 4px 0; padding-left: 12px; font-size: 0.9rem;">❄️ 下雪: <span id="final-w-snow" style="font-weight:bold; color:#dfe6e9;">0%</span> (<span id="final-w-snow-sec" style="color:#dfe6e9;">0.0s</span>)</p>
+ <p style="margin: 4px 0; padding-left: 12px; font-size: 0.9rem;">🌫️ 大霧: <span id="final-w-fog" style="font-weight:bold; color:#95a5a6;">0%</span> (<span id="final-w-fog-sec" style="color:#95a5a6;">0.0s</span>)</p>
+ <p style="margin: 4px 0; padding-left: 12px; font-size: 0.9rem;">⛈️ 雷雨: <span id="final-w-thunderstorm" style="font-weight:bold; color:#6c5ce7;">0%</span> (<span id="final-w-thunderstorm-sec" style="color:#6c5ce7;">0.0s</span>)</p>
+ <hr style="border: 0; border-top: 2px dashed #ffeaa7; margin: 8px 0;">
  <p style="margin: 6px 0; font-size: 0.95rem;">🏃 <b>速度使用：</b></p>
  <p style="margin: 4px 0; padding-left: 12px; font-size: 0.9rem;">⬆️ 加速: <span id="final-speed-fast" style="font-weight:bold; color:#ff4757;">0%</span> (<span id="final-speed-fast-sec" style="color:#ff4757;">0.0s</span>)</p>
  <p style="margin: 4px 0; padding-left: 12px; font-size: 0.9rem;">➡️ 正常: <span id="final-speed-normal" style="font-weight:bold; color:#0984e3;">0%</span> (<span id="final-speed-normal-sec" style="color:#0984e3;">0.0s</span>)</p>
@@ -327,6 +334,8 @@
  let bgmStep = 0;
  // Speed usage statistics (ms accumulated in each speed bucket)
 let speedStats = { fast: 0, normal: 0, slow: 0 };
+// Weather distribution statistics (ms accumulated in each weather state)
+let weatherStats = { sunny: 0, rain: 0, snow: 0, fog: 0, thunderstorm: 0 };
 let lastElapsedSec = 0;
 // Threshold for "normal" speed band; outside this counts as fast (up) or slow (down)
 const SPEED_NORMAL_MIN = 0.95;
@@ -728,6 +737,16 @@ const finalSpeedNormalElement = document.getElementById('final-speed-normal');
 const finalSpeedNormalSecElement = document.getElementById('final-speed-normal-sec');
 const finalSpeedSlowElement = document.getElementById('final-speed-slow');
 const finalSpeedSlowSecElement = document.getElementById('final-speed-slow-sec');
+const finalWSunnyElement = document.getElementById('final-w-sunny');
+const finalWSunnySecElement = document.getElementById('final-w-sunny-sec');
+const finalWRainElement = document.getElementById('final-w-rain');
+const finalWRainSecElement = document.getElementById('final-w-rain-sec');
+const finalWSnowElement = document.getElementById('final-w-snow');
+const finalWSnowSecElement = document.getElementById('final-w-snow-sec');
+const finalWFogElement = document.getElementById('final-w-fog');
+const finalWFogSecElement = document.getElementById('final-w-fog-sec');
+const finalWThunderstormElement = document.getElementById('final-w-thunderstorm');
+const finalWThunderstormSecElement = document.getElementById('final-w-thunderstorm-sec');
 
  const startBtn = document.getElementById('start-btn');
  const restartBtn = document.getElementById('restart-btn');
@@ -1822,6 +1841,13 @@ const finalSpeedSlowSecElement = document.getElementById('final-speed-slow-sec')
  speedStats.normal += dtMs;
  }
 
+ // Accumulate weather distribution statistics. During the 3s transition we
+ // split 50/50: t < 0.5 counts as startWeather, t >= 0.5 as targetWeather.
+ // (At t === 1, subagent's updateWeather has already set currentWeather ===
+ // targetWeather, so the formula remains consistent.)
+ const statWeather = weatherTransitionT > 0.5 ? targetWeather : startWeather;
+ weatherStats[statWeather] += dtMs;
+
  // Spawn obstacles
  obstacleTimer++;
  currentObstacleSpawnRate = Math.max(30, obstacleSpawnRateBase - Math.floor(score * 0.6));
@@ -1918,6 +1944,28 @@ const finalSpeedSlowSecElement = document.getElementById('final-speed-slow-sec')
  finalSpeedSlowElement.innerText = '0%';     finalSpeedSlowSecElement.innerText = '0.0s';
  }
 
+ // Weather distribution breakdown
+ const totalWeatherMs = weatherStats.sunny + weatherStats.rain + weatherStats.snow + weatherStats.fog + weatherStats.thunderstorm;
+ if (totalWeatherMs > 0) {
+ finalWSunnyElement.innerText        = Math.round(weatherStats.sunny        / totalWeatherMs * 100) + '%';
+ finalWSunnySecElement.innerText     = (weatherStats.sunny        / 1000).toFixed(1) + 's';
+ finalWRainElement.innerText         = Math.round(weatherStats.rain         / totalWeatherMs * 100) + '%';
+ finalWRainSecElement.innerText      = (weatherStats.rain         / 1000).toFixed(1) + 's';
+ finalWSnowElement.innerText         = Math.round(weatherStats.snow         / totalWeatherMs * 100) + '%';
+ finalWSnowSecElement.innerText      = (weatherStats.snow         / 1000).toFixed(1) + 's';
+ finalWFogElement.innerText          = Math.round(weatherStats.fog          / totalWeatherMs * 100) + '%';
+ finalWFogSecElement.innerText       = (weatherStats.fog          / 1000).toFixed(1) + 's';
+ finalWThunderstormElement.innerText  = Math.round(weatherStats.thunderstorm / totalWeatherMs * 100) + '%';
+ finalWThunderstormSecElement.innerText = (weatherStats.thunderstorm / 1000).toFixed(1) + 's';
+ } else {
+ // Defensive zero fallback
+ finalWSunnyElement.innerText = '0%';        finalWSunnySecElement.innerText = '0.0s';
+ finalWRainElement.innerText = '0%';         finalWRainSecElement.innerText = '0.0s';
+ finalWSnowElement.innerText = '0%';         finalWSnowSecElement.innerText = '0.0s';
+ finalWFogElement.innerText = '0%';          finalWFogSecElement.innerText = '0.0s';
+ finalWThunderstormElement.innerText = '0%'; finalWThunderstormSecElement.innerText = '0.0s';
+ }
+
  gameOverScreen.classList.add('active');
  }
 
@@ -1972,6 +2020,8 @@ const finalSpeedSlowSecElement = document.getElementById('final-speed-slow-sec')
 
  // Reset speed usage statistics
  speedStats    = { fast: 0, normal: 0, slow: 0 };
+ // Reset weather distribution statistics
+ weatherStats  = { sunny: 0, rain: 0, snow: 0, fog: 0, thunderstorm: 0 };
  lastElapsedSec = 0;
 
  score = 0;
