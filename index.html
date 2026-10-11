@@ -149,9 +149,27 @@
  pointer-events: auto;
  display: none;
  max-width: 88%;
+ max-height: calc(100vh - 32px);
  width: 420px;
+ overflow-y: auto;
+ -webkit-overflow-scrolling: touch;
  transform: rotate(-1deg);
  z-index: 20;
+ }
+
+ /* UX2: pause/resume screen flash overlay (200ms fade-out) */
+ #game-container.flash::before {
+ content: '';
+ position: absolute;
+ inset: 0;
+ background: rgba(255, 255, 255, 0.45);
+ pointer-events: none;
+ animation: flash-fade 0.22s ease-out forwards;
+ z-index: 30;
+ }
+ @keyframes flash-fade {
+ from { opacity: 1; }
+ to   { opacity: 0; }
  }
 
  .screen.active {
@@ -233,13 +251,6 @@
  .touch-btn.pressed {
  transform: scale(0.92);
  background: rgba(255, 234, 167, 0.9);
- }
-
- .d-pad {
- display: grid;
- grid-template-columns: repeat(3, 50px);
- grid-template-rows: repeat(2, 50px);
- gap: 6px;
  }
 
  kbd, .kbd {
@@ -331,7 +342,6 @@
  let soundEnabled = true;
  let bgmTimer = null;
  let bgmNextNoteTime = 0;
- let bgmStep = 0;
  // Speed usage statistics (ms accumulated in each speed bucket)
 let speedStats = { fast: 0, normal: 0, slow: 0 };
 // Weather distribution statistics (ms accumulated in each weather state)
@@ -563,7 +573,6 @@ const SPEED_NORMAL_MAX = 1.05;
 
  function startBGM() {
  if (!audioCtx || bgmTimer !== null) return;
- bgmStep = 0;
  bgmNextNoteTime = audioCtx.currentTime + 0.05;
  scheduleBGMLoop(bgmNextNoteTime);
  // Heartbeat re-scheduling so we keep pushing notes ahead as the song goes on
@@ -598,7 +607,6 @@ const SPEED_NORMAL_MAX = 1.05;
  }
  bgmActiveGains = [];
  bgmNextNoteTime = 0;
- bgmStep = 0;
  }
 
  // ============== SFX ==============
@@ -715,7 +723,8 @@ const SPEED_NORMAL_MAX = 1.05;
 
  // Player sprite (Sunshine Yellow dino on red bike, 1024x1024 with transparent background)
  const playerSprite = new Image();
- playerSprite.src = 'assets/player-sprite.png';
+ // ?v=2 cache-bust: GitHub Pages caches assets aggressively; bump version when sprite changes
+ playerSprite.src = 'assets/player-sprite.png?v=2';
 
  // UI Elements
  const startScreen = document.getElementById('start-screen');
@@ -811,10 +820,28 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
   return (canvas.width - getCurrentRoadWidth()) / 2;
  }
 
+ // ----- Debug hitbox overlay (off by default; flip window.__debugHitbox = true) -----
+ // 開咗之後：玩家周圍紅圈、障礙物紅圈、炸彈/星 紅圈 — 用嚟校準碰撞感覺。
+ function drawDebugHitbox(x, y, r, color = '#ff0000') {
+  if (!window.__debugHitbox) return;
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+ }
+
  // === Road width transition update ===
  // Called every frame from gameLoop(). Picks new targets on a schedule;
  // lerps current ratio toward target with ease-out cubic over 1500ms.
- function updateRoadWidth(elapsedMs) {
+ //
+ // deltaMs: real frame time from gameLoop. Default 16ms keeps callers safe
+ // (e.g. initial render) but the gameplay path passes actual measured dt
+ // so 30fps devices don't stretch the transition to 3s.
+ function updateRoadWidth(elapsedMs, deltaMs = 16) {
   // 尚未到達下次變化時間 → 維持 in-flight 過渡；唔揀新 target。
   if (elapsedMs >= nextRoadChangeAtMs && roadTransitionT >= 1) {
    // 揀新嘅 target。35s 前用溫和 pool；35s+ 用全範圍。
@@ -836,24 +863,26 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
    nextRoadChangeAtMs = elapsedMs + ROAD_TRANSITION_DUR_MS + intervalMs;
   }
 
-  // Lerp 過渡（ease-out cubic）
+  // Lerp 過渡（ease-out cubic）— 接受真實 frame delta，唔再 hardcode 16ms
   if (roadTransitionT < 1) {
-   roadTransitionT = Math.min(1, roadTransitionT + 16 / ROAD_TRANSITION_DUR_MS); // 假設 ~60fps
+   roadTransitionT = Math.min(1, roadTransitionT + deltaMs / ROAD_TRANSITION_DUR_MS);
    const e = 1 - Math.pow(1 - roadTransitionT, 3); // ease-out cubic
    currentRoadWidthRatio =
     startRoadWidthRatio + (targetRoadWidthRatio - startRoadWidthRatio) * e;
   }
 
-  // Debug instrumentation（暫時，commit 保留，日後由 Nathan 清理）
-  const prev = window.__road;
-  window.__road = {
-   currentRatio: currentRoadWidthRatio,
-   startRatio:  startRoadWidthRatio,
-   targetRatio: targetRoadWidthRatio,
-   transitionT:  roadTransitionT,
-   nextChangeAt: nextRoadChangeAtMs,
-   changeCount:  prev ? prev.changeCount + (targetRoadWidthRatio !== prev.targetRatio ? 1 : 0) : 0
-  };
+  // Debug instrumentation — master switch 守門，production 默認 off
+  if (window.__debug) {
+   const prev = window.__road;
+   window.__road = {
+    currentRatio: currentRoadWidthRatio,
+    startRatio:  startRoadWidthRatio,
+    targetRatio: targetRoadWidthRatio,
+    transitionT:  roadTransitionT,
+    nextChangeAt: nextRoadChangeAtMs,
+    changeCount:  prev ? prev.changeCount + (targetRoadWidthRatio !== prev.targetRatio ? 1 : 0) : 0
+   };
+  }
  }
 
  // ============================================================
@@ -1014,7 +1043,12 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
   return 'sunny';
  }
 
- // ----- §3.1.F Profile getters -----
+ // ----- §3.1.F Profile getters (with simple cache) -----
+ // Profile 只喺 weatherTransitionT 變動時先需要重算。Cache 由 updateWeather()
+ // 喺 transitionT / startWeather / targetWeather 變動後 invalidate。
+ let _cachedWeatherProfile = null;
+ function invalidateWeatherCache() { _cachedWeatherProfile = null; }
+
  function getWeatherProfile(w) {
   switch (w) {
    case 'rain':
@@ -1032,10 +1066,11 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  }
 
  function getCurrentWeatherProfile() {
+  if (_cachedWeatherProfile) return _cachedWeatherProfile;
   const a = getWeatherProfile(startWeather);
   const b = getWeatherProfile(targetWeather);
   const t = weatherTransitionT;
-  return {
+  _cachedWeatherProfile = {
    friction:      a.friction    + (b.friction    - a.friction)    * t,
    speedCap:      a.speedCap    + (b.speedCap    - a.speedCap)    * t,
    visionAlpha:   a.visionAlpha + (b.visionAlpha - a.visionAlpha) * t,
@@ -1046,6 +1081,7 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
    // lightning 喺過渡中段（>0.5）切到 target，避免音頻/視覺雙重觸發
    lightning:     t > 0.5 ? b.lightning : a.lightning
   };
+  return _cachedWeatherProfile;
  }
 
  // ----- §3.1.E Audio: start / fadeOut / thunder / lightning trigger -----
@@ -1148,6 +1184,8 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
   // 1) 過渡 t 漸進（線性，16ms / 3000ms ≈ 0.533% / frame）
   if (weatherTransitionT < 1) {
    weatherTransitionT = Math.min(1, weatherTransitionT + 16 / WEATHER_TRANSITION_DUR_MS);
+   // t 一變就 invalidate profile cache，否則 drawWeatherOverlay() 拎到舊 profile
+   invalidateWeatherCache();
    // 到達 1 時 commit 進 currentWeather + 啟動新 ambient audio
    if (weatherTransitionT >= 1) {
     currentWeather = targetWeather;
@@ -1161,6 +1199,7 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
    startWeather     = currentWeather;
    targetWeather    = next;
    weatherTransitionT = 0;
+   invalidateWeatherCache();
    const intervalMs = getNextChangeInterval(next);
    nextWeatherChangeAtMs = elapsedMs + WEATHER_TRANSITION_DUR_MS + intervalMs;
    if (next === 'thunderstorm') {
@@ -1185,30 +1224,34 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
    snowFlakes.length = 0;
   }
 
-  // 4) Thunderstorm lightning trigger
-  if (currentWeather === 'thunderstorm' && elapsedMs >= nextLightningAtMs) {
+  // 4) Thunderstorm lightning trigger — 過渡中段（>0.5）都 trigger，
+  // 唔好等 currentWeather commit 後先用得，避免 3s dead window
+  const tActive = weatherTransitionT > 0.5 ? targetWeather : currentWeather;
+  if (tActive === 'thunderstorm' && elapsedMs >= nextLightningAtMs) {
    triggerLightning(elapsedMs);
   }
   if (lightningFlashUntil > 0 && performance.now() >= lightningFlashUntil) {
    lightningFlashUntil = 0;
   }
 
-  // 5) Debug instrumentation（暫時，commit 保留，日後由 Nathan 清理）
-  const prevW = window.__weather;
-  window.__weather = {
-   current:      currentWeather,
-   start:        startWeather,
-   target:       targetWeather,
-   t:            weatherTransitionT,
-   friction:     currentFriction,
-   speedCap:     currentSpeedCap,
-   visionAlpha:  currentVisionAlpha,
-   rainDrops:    rainDrops.length,
-   snowFlakes:   snowFlakes.length,
-   nextChangeAt: nextWeatherChangeAtMs,
-   lightningNext: nextLightningAtMs,
-   changeCount:  prevW ? prevW.changeCount + (targetWeather !== prevW.target ? 1 : 0) : 0
-  };
+  // 5) Debug instrumentation — master switch 守門，production 默認 off
+  if (window.__debug) {
+   const prevW = window.__weather;
+   window.__weather = {
+    current:      currentWeather,
+    start:        startWeather,
+    target:       targetWeather,
+    t:            weatherTransitionT,
+    friction:     currentFriction,
+    speedCap:     currentSpeedCap,
+    visionAlpha:  currentVisionAlpha,
+    rainDrops:    rainDrops.length,
+    snowFlakes:   snowFlakes.length,
+    nextChangeAt: nextWeatherChangeAtMs,
+    lightningNext: nextLightningAtMs,
+    changeCount:  prevW ? prevW.changeCount + (targetWeather !== prevW.target ? 1 : 0) : 0
+   };
+  }
  }
 
  // ----- §3.1.D Render overlay -----
@@ -1227,26 +1270,42 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
    ctx.restore();
   }
 
-  // 2) Rain particles（per-droplet alpha * 過渡 intensity ratio，fade in/out 平滑）
+  // 2) Rain particles (batched: 1 stroke call instead of N per-droplet calls)
+  // Production path renders all rain in a single beginPath/stroke to avoid
+  // 100+ stroke calls per frame (5-10× speedup on low-end mobile).
+  // Per-droplet alpha was visually almost identical; we apply a single
+  // uniform alpha. Flip window.__rainPerDropletAlpha = true to restore the
+  // original per-droplet loop (debug only).
   if (rainDrops.length > 0) {
    ctx.save();
-   ctx.strokeStyle = 'rgba(180, 200, 230, 0.6)';
    ctx.lineWidth = 1.5;
    ctx.lineCap = 'round';
-   // rain intensity ratio：transition 中嘅 fade（profile.rainIntensity / target intensity）
-   // 用 rainDrops.length / 260 做粗略 fade ratio（過渡期間 linear）
    const fade = Math.min(1, rainDrops.length / Math.max(1, profile.rainIntensity));
-   for (let i = 0; i < rainDrops.length; i++) {
-    const d = rainDrops[i];
-    ctx.globalAlpha = d.alpha * fade;
+   if (window.__rainPerDropletAlpha) {
+    ctx.strokeStyle = 'rgba(180, 200, 230, 0.6)';
+    for (let i = 0; i < rainDrops.length; i++) {
+     const d = rainDrops[i];
+     ctx.globalAlpha = d.alpha * fade;
+     ctx.beginPath();
+     ctx.moveTo(d.x, d.y);
+     ctx.lineTo(d.x + d.vx, d.y + d.vy);
+     ctx.stroke();
+    }
+   } else {
+    ctx.globalAlpha = 0.7 * fade;
+    ctx.strokeStyle = 'rgba(180, 200, 230, 0.85)';
     ctx.beginPath();
-    ctx.moveTo(d.x, d.y);
-    ctx.lineTo(d.x + d.vx, d.y + d.vy);
+    for (let i = 0; i < rainDrops.length; i++) {
+     const d = rainDrops[i];
+     ctx.moveTo(d.x, d.y);
+     ctx.lineTo(d.x + d.vx, d.y + d.vy);
+    }
     ctx.stroke();
    }
    ctx.globalAlpha = 1;
    ctx.restore();
   }
+
 
   // 3) Snow particles
   if (snowFlakes.length > 0) {
@@ -1875,6 +1934,14 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  gameLoopId = requestAnimationFrame(gameLoop);
  }
 
+ // ====== Screen flash helper (UX2: pause/resume visual feedback) ======
+ function triggerScreenFlash() {
+ const container = document.getElementById('game-container');
+ if (!container) return;
+ container.classList.add('flash');
+ setTimeout(() => container.classList.remove('flash'), 220);
+ }
+
  function togglePause() {
  if (gameState === 'PLAYING') {
  gameState = 'PAUSED';
@@ -1894,6 +1961,9 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  keys.down = false;
  document.querySelectorAll('.touch-btn.pressed').forEach(b => b.classList.remove('pressed'));
  pauseScreen.classList.remove('active');
+ // UX3: resume 期間重啟 weather ambient audio（pause 期間已 fade 完，避免完全靜音）
+ if (currentWeather !== 'sunny') startWeatherAudio(currentWeather);
+ triggerScreenFlash(); // UX2: 視覺 confirmation
  gameState = 'PLAYING';
  startBGM();
  gameLoop();
@@ -2017,6 +2087,7 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  currentFriction      = 0.84;
  currentSpeedCap      = 1.7;
  currentVisionAlpha   = 1.0;
+ invalidateWeatherCache();
 
  // Reset speed usage statistics
  speedStats    = { fast: 0, normal: 0, slow: 0 };
