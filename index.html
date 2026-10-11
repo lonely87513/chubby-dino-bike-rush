@@ -131,6 +131,55 @@
  border-color: #b2bec3;
  }
 
+ /* E3: High-contrast mode toggle button */
+ #contrast-toggle {
+ pointer-events: auto;
+ background: rgba(255, 255, 245, 0.96);
+ border: 2px dashed #fdcb6e;
+ border-radius: 14px;
+ min-height: 48px;
+ padding: 8px 12px;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ gap: 6px;
+ color: #2c2825;
+ cursor: pointer;
+ box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+ transition: transform 0.1s, opacity 0.2s, border-color 0.2s;
+ -webkit-tap-highlight-color: transparent;
+ white-space: nowrap;
+ font: inherit;
+ font-size: 14px;
+ font-weight: bold;
+ letter-spacing: 0.5px;
+ }
+
+ #contrast-toggle.active {
+ background: rgba(253, 203, 110, 0.3);
+ border-color: #e17055;
+ }
+
+ #contrast-toggle:hover {
+ transform: scale(1.04);
+ }
+
+ #contrast-toggle:active {
+ transform: scale(0.96);
+ }
+
+ /* E3: High-contrast color overrides via CSS custom properties */
+ body.contrast-mode {
+ --road-color: #000000;
+ --grass-color: #ffffff;
+ --obstacle-red: #c0392b;
+ }
+
+ body.contrast-mode canvas,
+ body.contrast-mode #gameCanvas {
+ background-color: #ffffff;
+ }
+
  #sound-toggle:hover {
  transform: scale(1.04);
  }
@@ -270,10 +319,11 @@
 <div id="game-container">
  <canvas id="gameCanvas"></canvas>
 
- <div id="score-display">
+ <div id="score-display" aria-live="polite">
  <div class="score-item">⏱️ <span id="score">0</span>s</div>
  <div class="score-item">🚴 <span id="dist-display">0</span>m</div>
  <div class="score-item">⭐ <span id="bonus-display">0</span>pt</div>
+ <button id="contrast-toggle" type="button" aria-label="高對比模式" aria-pressed="false">👁️ 高對比</button>
  <button id="sound-toggle" type="button" aria-label="音效開關" aria-pressed="true"><span class="sound-icon">🔊</span><span class="sound-label">音效</span></button>
  </div>
 
@@ -292,6 +342,7 @@
  <!-- Start Screen -->
  <div id="start-screen" class="screen active">
  <h1>肥翼龍單車<br>狂奔</h1>
+ <p id="personal-best-display" style="font-size:0.95rem; color:#6c5ce7; margin-bottom:10px;"></p>
  <p>🖍️ 兒童塗鴉風極限生存！<br><br><b>操控說明：</b><br>• ⬅️ ➡️ / A D 閃避方向<br>• ⬆️ ⬇️ / W S 加速與減速<br><br>⚠️ <b>20秒後：</b> 天降星獎賞⭐與危險炸彈💣！<br>⚠️ <b>30秒後：</b> 路障開始隨機擺動！<br>⌨️ <b>空白鍵</b> 暫停 / 繼續</p>
  <button id="start-btn">開始遊戲</button>
  </div>
@@ -299,7 +350,7 @@
  <!-- Game Over Screen -->
  <div id="game-over-screen" class="screen">
  <h1>Game Over!</h1>
- <div style="text-align: left; background: #fff8e7; padding: 14px 18px; border-radius: 16px; border: 2px dashed #fdcb6e; margin-bottom: 20px; font-size: 1rem; width: 100%;">
+ <div style="text-align: left; background: #fff8e7; padding: 14px 18px; border-radius: 16px; border: 2px dashed #fdcb6e; margin-bottom: 12px; font-size: 1rem; width: 100%;">
  <p style="margin: 6px 0;">⏱️ 存活時間: <span id="final-time" style="font-weight:bold; color:#ff6b6b;">0</span> 秒 (+<span id="final-time-pts">0</span>分)</p>
  <p style="margin: 6px 0;">🚴 行駛距離: <span id="final-dist" style="font-weight:bold; color:#0984e3;">0</span> 米 (+<span id="final-dist-pts">0</span>分)</p>
  <p style="margin: 6px 0;">⭐ 收集獎賞: <span id="final-bonus" style="font-weight:bold; color:#fdcb6e;">0</span> 分</p>
@@ -318,6 +369,19 @@
  <p style="margin: 4px 0; padding-left: 12px; font-size: 0.9rem;">➡️ 正常: <span id="final-speed-normal" style="font-weight:bold; color:#0984e3;">0%</span> (<span id="final-speed-normal-sec" style="color:#0984e3;">0.0s</span>)</p>
  <p style="margin: 4px 0; padding-left: 12px; font-size: 0.9rem;">⬇️ 減速: <span id="final-speed-slow" style="font-weight:bold; color:#2ed573;">0%</span> (<span id="final-speed-slow-sec" style="color:#2ed573;">0.0s</span>)</p>
  </div>
+
+ <!-- E2: Leaderboard -->
+ <div id="leaderboard-block" style="text-align:left; background:#fff8e7; padding:10px 14px; border-radius:12px; border:2px dashed #6c5ce7; margin-bottom:10px; width:100%; font-size:0.9rem;">
+ <p style="margin:4px 0; font-weight:bold; color:#6c5ce7; font-size:1rem;">🏆 排行榜 Top 5</p>
+ <div id="leaderboard-entries"></div>
+ </div>
+
+ <!-- E2: New Achievements Unlocked This Round -->
+ <div id="achievements-block" style="text-align:left; background:#fff8e7; padding:10px 14px; border-radius:12px; border:2px dashed #fdcb6e; margin-bottom:10px; width:100%; font-size:0.9rem;">
+ <p style="margin:4px 0; font-weight:bold; color:#e17055; font-size:1rem;">🎖️ 本局新成就</p>
+ <div id="achievement-entries"></div>
+ </div>
+
  <button id="restart-btn">再玩一次</button>
  </div>
 
@@ -798,6 +862,163 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  let obstacleTimer = 0;
  const obstacleSpawnRateBase = 65;
  let currentObstacleSpawnRate = obstacleSpawnRateBase;
+
+ // E1: Difficulty phases
+ const DIFF_PHASES = [
+ { maxSec: 20,  moving: false, multiChance: 0,    extraRadius: 0,  lightningExtra: 0 },
+ { maxSec: 40,  moving: false, multiChance: 0,    extraRadius: 0,  lightningExtra: 0 },
+ { maxSec: 60,  moving: true,  multiChance: 0.30, extraRadius: 0,  lightningExtra: 0 },
+ { maxSec: 80,  moving: true,  multiChance: 0.60, extraRadius: 5,  lightningExtra: 1 },
+ { maxSec: Infinity, moving: true, multiChance: 0.90, extraRadius: 8, lightningExtra: 2 }
+ ];
+ function getDiffPhase(sec) {
+ for (let i = 0; i < DIFF_PHASES.length; i++) {
+ if (sec < DIFF_PHASES[i].maxSec) return i;
+ }
+ return DIFF_PHASES.length - 1;
+ }
+
+ // E2: Leaderboard + Achievements state
+ const LS_SCORES = 'chubby_dino_bike_rush_high_scores';
+ const LS_ACHIEVEMENTS = 'chubby_dino_bike_rush_achievements';
+ const LS_CUM_STARS = 'chubby_dino_bike_rush_cum_stars';
+ const LS_CONTRAST = 'chubby_dino_bike_rush_contrast';
+ let highScores = [];        // top 5, loaded at startup
+ let allAchievements = {};  // persisted, loaded at startup
+ let cumStars = 0;          // cross-session star counter
+ let sessionWeatherTypes = new Set(); // weather types seen this session
+
+ function loadPersistData() {
+ try {
+ const s = localStorage.getItem(LS_SCORES);
+ if (s) highScores = JSON.parse(s);
+ } catch(e) { highScores = []; }
+ try {
+ const a = localStorage.getItem(LS_ACHIEVEMENTS);
+ if (a) allAchievements = JSON.parse(a);
+ } catch(e) { allAchievements = {}; }
+ try {
+ const c = localStorage.getItem(LS_CUM_STARS);
+ if (c) cumStars = parseInt(c, 10) || 0;
+ } catch(e) { cumStars = 0; }
+ }
+ loadPersistData();
+
+ // E3: Reduced-motion state
+ let reducedMotionActive = false;
+ function checkReducedMotion() {
+ try {
+ reducedMotionActive = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+ } catch(e) { reducedMotionActive = false; }
+ }
+ checkReducedMotion();
+
+ // E3: Contrast mode init (sync body class + button state from localStorage)
+ function applyContrastMode(active) {
+ try { localStorage.setItem(LS_CONTRAST, active ? '1' : '0'); } catch(e){}
+ document.body.classList.toggle('contrast-mode', active);
+ const btn = document.getElementById('contrast-toggle');
+ if (btn) {
+ btn.classList.toggle('active', active);
+ btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+ btn.textContent = active ? '👁️ 高對比 ✓' : '👁️ 高對比';
+ }
+ }
+ try {
+ if (localStorage.getItem(LS_CONTRAST) === '1') applyContrastMode(true);
+ } catch(e){}
+
+ // E2: Personal-best helper
+ const personalBestEl = document.getElementById('personal-best-display');
+ function refreshPersonalBest() {
+ if (!personalBestEl) return;
+ if (highScores.length === 0) {
+ personalBestEl.textContent = '';
+ return;
+ }
+ const best = highScores[0];
+ personalBestEl.textContent = '🏆 Personal Best: ' + best.time + 's / ' + best.distance + 'm';
+ }
+ refreshPersonalBest();
+
+ // E2: Achievement definitions
+ const ACH_DEFS = {
+ survivor_30s:    { label: '💪 生存30秒',       desc: '存活超過30秒' },
+ star_collector_100: { label: '⭐ 星之收集者',   desc: '累積收集100顆星' },
+ weather_survivor: { label: '🌈 天氣征服者',     desc: '經歷所有5種天氣' },
+ distance_500m:   { label: '🚴 500米行者',       desc: '單局行駛500米' }
+ };
+
+ // E2: Score-entry format helper
+ function makeScoreEntry(time, dist, total) {
+ return { time, distance: dist, total, date: new Date().toISOString() };
+ }
+
+ // E2: Main leaderboard + achievements processor (called from triggerGameOver)
+ function processGameOverResults(secs, distMeters) {
+ // 1) Update leaderboard
+ const entry = makeScoreEntry(secs, Math.floor(distMeters), totalScore);
+ highScores.push(entry);
+ highScores.sort((a, b) => b.total - a.total);
+ if (highScores.length > 5) highScores.length = 5;
+ try { localStorage.setItem(LS_SCORES, JSON.stringify(highScores)); } catch(e){}
+
+ // 2) Check achievements
+ const newUnlocked = [];
+
+ // survivor_30s
+ if (secs >= 30 && !allAchievements.survivor_30s) {
+ allAchievements.survivor_30s = { unlockedAt: new Date().toISOString() };
+ newUnlocked.push('survivor_30s');
+ }
+ // star_collector_100 (cumStars already updated during gameplay)
+ if (cumStars >= 100 && !allAchievements.star_collector_100) {
+ allAchievements.star_collector_100 = { unlockedAt: new Date().toISOString() };
+ newUnlocked.push('star_collector_100');
+ }
+ // weather_survivor: all 5 weather types seen this session
+ if (sessionWeatherTypes.size >= 5 && !allAchievements.weather_survivor) {
+ allAchievements.weather_survivor = { unlockedAt: new Date().toISOString() };
+ newUnlocked.push('weather_survivor');
+ }
+ // distance_500m
+ if (distMeters >= 500 && !allAchievements.distance_500m) {
+ allAchievements.distance_500m = { unlockedAt: new Date().toISOString() };
+ newUnlocked.push('distance_500m');
+ }
+
+ if (newUnlocked.length > 0) {
+ try { localStorage.setItem(LS_ACHIEVEMENTS, JSON.stringify(allAchievements)); } catch(e){}
+ }
+
+ // 3) Render leaderboard on game-over screen
+ const lbContainer = document.getElementById('leaderboard-entries');
+ if (lbContainer) {
+ if (highScores.length === 0) {
+ lbContainer.innerHTML = '<p style="margin:4px 0;color:#636e72;">暫無記錄</p>';
+ } else {
+ lbContainer.innerHTML = highScores.map((e, i) =>
+ '<p style="margin:3px 0;color:' + (i === 0 ? '#e17055' : '#2d3436') + ';">' +
+ '第' + (i+1) + '名: ' + e.time + 's / ' + e.distance + 'm / ' + e.total + '分' +
+ '</p>'
+ ).join('');
+ }
+ }
+
+ // 4) Render newly unlocked achievements
+ const achContainer = document.getElementById('achievement-entries');
+ if (achContainer) {
+ if (newUnlocked.length === 0) {
+ achContainer.innerHTML = '<p style="margin:4px 0;color:#636e72;">本局無新成就</p>';
+ } else {
+ achContainer.innerHTML = newUnlocked.map(id => {
+ const def = ACH_DEFS[id];
+ return '<p style="margin:4px 0;color:#e17055;font-weight:bold;">' +
+ (def ? def.label : id) + ' — ' + (def ? def.desc : '') + '</p>';
+ }).join('');
+ }
+ }
+ }
 
  // === Road width dynamic state ===
  // Road width is dynamic; ranges between ROAD_WIDTH_MIN and ROAD_WIDTH_MAX.
@@ -1493,8 +1714,13 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  const roadWidth = getCurrentRoadWidth();
  const roadLeft = getCurrentRoadLeft();
 
+ // E3: High-contrast mode — use CSS variable–driven or direct override colors
+ const inContrast = document.body.classList.contains('contrast-mode');
+ const grassColor  = inContrast ? '#ffffff' : '#badc58';
+ const roadColor   = inContrast ? '#000000' : '#4a5568';
+
  // Grass Background
- ctx.fillStyle = '#badc58';
+ ctx.fillStyle = grassColor;
  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
  // Grass tufts & crayon flowers
@@ -1510,7 +1736,7 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  }
 
  // Asphalt Road
- ctx.fillStyle = '#4a5568';
+ ctx.fillStyle = roadColor;
  ctx.fillRect(roadLeft, 0, roadWidth, canvas.height);
 
  // Texture Noise on Road
@@ -1581,8 +1807,10 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  // and width * 1.2; we draw the sprite centered on (player.x, player.y) and
  // scale it up slightly to match the visual size of the old crayon sprite.
 
- // Subtle vertical bob driven by legAngle for a hint of life.
- const bob = Math.sin(player.legAngle * 2) * 1.5; // ±1.5px
+ // E3: Reduced motion — skip the vertical bob when user prefers reduced motion.
+ // Also, legAngle / propellerAngle increments are skipped in updatePlayer when
+ // reduced motion is active (see updatePlayer).
+ const bob = reducedMotionActive ? 0 : Math.sin(player.legAngle * 2) * 1.5; // ±1.5px
 
  const drawW = player.width * 1.4;
  const drawH = player.height * 1.4;
@@ -1597,7 +1825,7 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  ctx.restore();
  }
 
- function spawnObstacle() {
+ function spawnObstacle(extraR = 0) {
  const roadWidth = getCurrentRoadWidth();
  const roadLeft = getCurrentRoadLeft();
  const margin = 35;
@@ -1605,12 +1833,14 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
 
  const types = ['ROCK', 'CONE', 'PUDDLE'];
  const type = types[Math.floor(Math.random() * types.length)];
- const isMoving = score >= 30; // Dynamic movement after 30 seconds!
+ const phase = getDiffPhase(score);
+ const phaseCfg = DIFF_PHASES[phase];
+ const isMoving = phaseCfg.moving;
 
  obstacles.push({
  x: x,
  y: -50,
- r: 20,
+ r: 20 + extraR,
  type: type,
  isMoving: isMoving,
  vx: isMoving ? (Math.random() > 0.5 ? 1 : -1) * (1.5 + Math.random() * 1.5) : 0,
@@ -1751,6 +1981,9 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  // Reward collected!
  playStarSFX();
  bonusScore += 100;
+ // E2: Track cross-session star count for star_collector_100 achievement
+ cumStars++;
+ try { localStorage.setItem(LS_CUM_STARS, String(cumStars)); } catch(e){}
  bonusElement.innerText = bonusScore;
  createFloatingText(item.x, item.y, '+100 ⭐', '#f1c40f');
  fallingItems.splice(i, 1);
@@ -1854,8 +2087,11 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  // Animation tick updates (moved from old drawPlayer(); kept so the subtle
  // vertical bob in drawPlayer() still animates, and to preserve the existing
  // angle values on the player object for any future use).
+ // E3: Reduced motion — freeze propeller / leg animation when user prefers it.
+ if (!reducedMotionActive) {
  player.propellerAngle += 0.35 * player.speedMultiplier;
  player.legAngle += 0.25 * player.speedMultiplier;
+ }
  }
 
  function gameLoop() {
@@ -1906,12 +2142,38 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  // targetWeather, so the formula remains consistent.)
  const statWeather = weatherTransitionT > 0.5 ? targetWeather : startWeather;
  weatherStats[statWeather] += dtMs;
+ // E2: Track distinct weather types for weather_survivor achievement
+ sessionWeatherTypes.add(statWeather);
+
+ // E1: Phase-aware obstacle spawning (multi-obstacle in higher phases)
+ const diffPhase = getDiffPhase(score);
+ const diffCfg = DIFF_PHASES[diffPhase];
+ // E1: Obstacle spawn rate scales with phase (40-60: faster, 60+: even faster)
+ const phaseRateBonus = diffPhase >= 2 ? (diffPhase - 1) * 8 : 0;
+ const effectiveSpawnRate = Math.max(20, obstacleSpawnRateBase - Math.floor(score * 0.6) - phaseRateBonus);
+
+ // E1: Lightning frequency increases in chaos phase
+ if (diffPhase >= 3 && currentWeather === 'thunderstorm') {
+ // Extra lightning trigger if next scheduled is > (3-phase) × 2000ms away
+ const minInterval = Math.max(1000, 5000 - diffCfg.lightningExtra * 1500);
+ if (nextLightningAtMs - elapsed * 1000 > minInterval + 2000) {
+ triggerLightning(elapsed * 1000);
+ }
+ }
 
  // Spawn obstacles
  obstacleTimer++;
- currentObstacleSpawnRate = Math.max(30, obstacleSpawnRateBase - Math.floor(score * 0.6));
- if (obstacleTimer >= currentObstacleSpawnRate) {
- spawnObstacle();
+ if (obstacleTimer >= effectiveSpawnRate) {
+ // E1: Primary obstacle
+ spawnObstacle(diffCfg.extraRadius);
+ // E1: Secondary obstacle (30%/60%/90% chance in 40+/60+/80+s phases)
+ if (diffCfg.multiChance > 0 && Math.random() < diffCfg.multiChance) {
+ spawnObstacle(diffCfg.extraRadius);
+ }
+ // E1: Tertiary obstacle (30% chance in 80s+ chaos phase)
+ if (diffPhase >= 4 && Math.random() < 0.30) {
+ spawnObstacle(diffCfg.extraRadius);
+ }
  obstacleTimer = 0;
  }
 
@@ -2037,6 +2299,10 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  }
 
  gameOverScreen.classList.add('active');
+
+ // E2: Process leaderboard + achievements, then render to screen
+ processGameOverResults(score, distance);
+ refreshPersonalBest();
  }
 
  function startGame() {
@@ -2046,6 +2312,9 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  // then start the looping BGM. unlockAudio() is idempotent.
  unlockAudio();
  startBGM();
+
+ // E3: Re-check reduced-motion preference each start (user may have changed OS setting)
+ checkReducedMotion();
 
  resizeCanvas();
  gameState = 'PLAYING';
@@ -2094,6 +2363,10 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  // Reset weather distribution statistics
  weatherStats  = { sunny: 0, rain: 0, snow: 0, fog: 0, thunderstorm: 0 };
  lastElapsedSec = 0;
+
+ // E2: Reset session weather type tracker for weather_survivor achievement
+ sessionWeatherTypes = new Set();
+ sessionWeatherTypes.add('sunny'); // game always starts sunny
 
  score = 0;
  distance = 0;
@@ -2175,6 +2448,16 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  });
  // Reflect restored preference on first paint (before AudioContext exists).
  syncSoundButtonUI();
+ }
+
+ // E3: Contrast mode toggle button
+ const contrastToggleBtn = document.getElementById('contrast-toggle');
+ if (contrastToggleBtn) {
+ contrastToggleBtn.addEventListener('click', (e) => {
+ e.preventDefault();
+ const isActive = document.body.classList.contains('contrast-mode');
+ applyContrastMode(!isActive);
+ });
  }
 
  // Initial setup draw
