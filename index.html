@@ -1586,6 +1586,8 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  let fallingItems = [];
  let floatingTexts = [];
  let itemSpawnTimer = 0;
+ // 動畫 C: speed-line particles (accelerating 期間 spawn)
+ let speedLines = [];
 
  function resizeCanvas() {
  const container = document.getElementById('game-container');
@@ -1798,30 +1800,128 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  }
 
  function drawPlayer() {
- // Draw skid/tire tracks (keep existing trail behavior)
+ // 1) Tire tracks (existing)
  drawTireTrails();
+ // 2) Speed lines behind dino (accelerating 期間 spawn)
+ drawSpeedLines();
 
- // Draw the player sprite, centered on (player.x, player.y).
- // The sprite is 1024x1024 with a transparent background.
- // The player object's width/height are set in resizeCanvas() to ~roadW * 0.25
- // and width * 1.2; we draw the sprite centered on (player.x, player.y) and
- // scale it up slightly to match the visual size of the old crayon sprite.
+ // Squash & stretch：加速時 stretch Y，減速時 compress
+ const speedDelta = player.speedMultiplier - 1.0;
+ const stretchY = 1.0 + Math.max(0, speedDelta) * 0.10 - Math.max(0, -speedDelta) * 0.05;
+ const stretchX = 1.0 - Math.max(0, speedDelta) * 0.05 + Math.max(0, -speedDelta) * 0.03;
 
- // E3: Reduced motion — skip the vertical bob when user prefers reduced motion.
- // Also, legAngle / propellerAngle increments are skipped in updatePlayer when
- // reduced motion is active (see updatePlayer).
- const bob = reducedMotionActive ? 0 : Math.sin(player.legAngle * 2) * 1.5; // ±1.5px
+ // E3: Reduced motion — skip bob/tilt/overlay animations
+ // 強化版 bob: ±1.5px → ±3.5px + ±2° rotation tilt (踩踏節奏)
+ const bob = reducedMotionActive ? 0 : Math.sin(player.legAngle * 2) * 3.5;
+ const tiltDeg = reducedMotionActive ? 0 : Math.sin(player.legAngle * 2) * 2.0;
 
  const drawW = player.width * 1.4;
  const drawH = player.height * 1.4;
 
+ // 3) Dino body 連同 squash/stretch + tilt 渲染
  ctx.save();
+ ctx.globalAlpha = currentVisionAlpha;
  ctx.translate(player.x, player.y + bob);
+ ctx.rotate(tiltDeg * Math.PI / 180);
+ ctx.scale(stretchX, stretchY);
  ctx.drawImage(
  playerSprite,
- -drawW / 2, -drawH / 2, // top-left corner (centered)
- drawW, drawH // width, height
+ -drawW / 2, -drawH / 2,
+ drawW, drawH
  );
+ ctx.restore();
+
+ // 4) Helmet shine sparkle — 喺 helmet 頂畫白色閃光，0.4s 週期
+ if (!reducedMotionActive) {
+ const sparklePhase = (player.propellerAngle * 1.5) % (Math.PI * 2);
+ const sparkleAlpha = Math.max(0, Math.sin(sparklePhase) * 0.7);
+ if (sparkleAlpha > 0.05) {
+ ctx.save();
+ ctx.globalAlpha = currentVisionAlpha * sparkleAlpha;
+ const spX = player.x + drawW * 0.10;
+ const spY = player.y + bob - drawH * 0.36;
+ ctx.fillStyle = '#ffffff';
+ ctx.beginPath();
+ ctx.arc(spX, spY, 2.5, 0, Math.PI * 2);
+ ctx.fill();
+ ctx.strokeStyle = '#fff5b1';
+ ctx.lineWidth = 1.2;
+ ctx.beginPath();
+ ctx.moveTo(spX - 5, spY); ctx.lineTo(spX + 5, spY);
+ ctx.moveTo(spX, spY - 5); ctx.lineTo(spX, spY + 5);
+ ctx.stroke();
+ ctx.restore();
+ }
+ }
+
+ // 5) Wheel rotation overlay — 3 個輪 (tricycle: 1 前 + 2 後)
+ if (!reducedMotionActive) {
+ ctx.save();
+ ctx.globalAlpha = currentVisionAlpha * 0.85;
+ ctx.translate(player.x, player.y + bob);
+ const wheelPositions = [
+ [-drawW * 0.18, drawH * 0.20, drawW * 0.07],
+ [ drawW * 0.10, drawH * 0.30, drawW * 0.07],
+ [ drawW * 0.30, drawH * 0.30, drawW * 0.07]
+ ];
+ for (const [wx, wy, wr] of wheelPositions) {
+ ctx.save();
+ ctx.translate(wx, wy);
+ ctx.rotate(player.legAngle);
+ ctx.strokeStyle = '#cccccc';
+ ctx.lineWidth = 1.2;
+ for (let s = 0; s < 4; s++) {
+ const ang = s * Math.PI / 2;
+ ctx.beginPath();
+ ctx.moveTo(0, 0);
+ ctx.lineTo(Math.cos(ang) * wr, Math.sin(ang) * wr);
+ ctx.stroke();
+ }
+ ctx.fillStyle = '#7f8c8d';
+ ctx.beginPath();
+ ctx.arc(0, 0, 1.5, 0, Math.PI * 2);
+ ctx.fill();
+ ctx.restore();
+ }
+ ctx.restore();
+ }
+
+ // 6) Tail wag — 喺 dino 尾部畫 sine curve 跟 legAngle 搖
+ if (!reducedMotionActive) {
+ ctx.save();
+ ctx.globalAlpha = currentVisionAlpha * 0.7;
+ const tailBaseX = player.x + drawW * 0.30;
+ const tailBaseY = player.y + bob + drawH * 0.10;
+ const wag = Math.sin(player.legAngle * 2) * 8;
+ ctx.strokeStyle = '#a29bfe';
+ ctx.lineWidth = 2.5;
+ ctx.beginPath();
+ ctx.moveTo(tailBaseX, tailBaseY);
+ ctx.quadraticCurveTo(tailBaseX + 8, tailBaseY - 4 + wag * 0.3, tailBaseX + 14, tailBaseY - 2 + wag);
+ ctx.stroke();
+ ctx.restore();
+ }
+
+ drawDebugHitbox(player.x, player.y, (player.hitboxW + player.hitboxH) * 0.25, '#00ff00');
+ }
+
+ // ============= Speed line particles (rendered behind dino body) =============
+ function drawSpeedLines() {
+ if (speedLines.length === 0) return;
+ ctx.save();
+ ctx.lineCap = 'round';
+ ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+ ctx.lineWidth = 1.8;
+ for (let i = 0; i < speedLines.length; i++) {
+ const sl = speedLines[i];
+ const alpha = (sl.life / sl.maxLife) * 0.7;
+ ctx.globalAlpha = alpha;
+ ctx.beginPath();
+ ctx.moveTo(sl.x, sl.y);
+ ctx.lineTo(sl.x + sl.length, sl.y);
+ ctx.stroke();
+ }
+ ctx.globalAlpha = 1;
  ctx.restore();
  }
 
@@ -2084,13 +2184,33 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  radius: 3.8
  });
 
- // Animation tick updates (moved from old drawPlayer(); kept so the subtle
- // vertical bob in drawPlayer() still animates, and to preserve the existing
- // angle values on the player object for any future use).
- // E3: Reduced motion — freeze propeller / leg animation when user prefers it.
+ // 動畫 tick — frame-rate independent (60fps baseline)
+ // E3: Reduced motion — freeze propeller / leg animation
  if (!reducedMotionActive) {
- player.propellerAngle += 0.35 * player.speedMultiplier;
- player.legAngle += 0.25 * player.speedMultiplier;
+ const dtFactor = (dtMs || 16) / 16;
+ player.propellerAngle += 0.35 * player.speedMultiplier * dtFactor;
+ player.legAngle += 0.25 * player.speedMultiplier * dtFactor;
+ }
+
+ // Speed line spawn — accelerating 期間喺車尾噴 vector 短線
+ const isAccelerating = keys.up || player.speedMultiplier > 1.15;
+ if (isAccelerating && Math.random() < 0.3) {
+ speedLines.push({
+ x: player.x - player.width * 0.5,
+ y: player.y + (Math.random() - 0.5) * player.height * 0.5,
+ vx: -(1.5 + Math.random() * 1.5),
+ life: 0.5,
+ maxLife: 0.5,
+ length: 6 + Math.random() * 6
+ });
+ }
+ // Update + cleanup (frame-rate independent)
+ const dtSec = (dtMs || 16) / 1000;
+ for (let i = speedLines.length - 1; i >= 0; i--) {
+ const sl = speedLines[i];
+ sl.x += sl.vx;
+ sl.life -= dtSec;
+ if (sl.life <= 0) speedLines.splice(i, 1);
  }
  }
 
@@ -2111,8 +2231,8 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  const distPts = Math.floor(distance * 2);
  totalScore = timePts + distPts + bonusScore;
 
- // Update entities
- updatePlayer();
+ // Update entities (pass dtMs for frame-rate independent animations)
+ updatePlayer(dtMs);
 
  // Update road width transition (affects all render/spawn/clamp paths)
  updateRoadWidth(elapsed * 1000);
@@ -2333,6 +2453,7 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  sceneryTrees = [];
  fallingItems = [];
  floatingTexts = [];
+ speedLines = []; // 動畫 C: 加速噴射線 reset
 
  // Reset road width dynamic state to base; 15s warmup before first change
  currentRoadWidthRatio = ROAD_WIDTH_BASE;
