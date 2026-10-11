@@ -2231,6 +2231,10 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  const distPts = Math.floor(distance * 2);
  totalScore = timePts + distPts + bonusScore;
 
+ // dtMs hoisted early: needed by updatePlayer() before the stats block below
+ const dtMs = (elapsed - lastElapsedSec) * 1000;
+ lastElapsedSec = elapsed;
+
  // Update entities (pass dtMs for frame-rate independent animations)
  updatePlayer(dtMs);
 
@@ -2246,8 +2250,7 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
 
  // Accumulate speed usage statistics (uses elapsed delta so pause/resume
  // doesn't double-count frozen time). Threshold: 0.95-1.05 = normal band.
- const dtMs = (elapsed - lastElapsedSec) * 1000;
- lastElapsedSec = elapsed;
+ // (dtMs already declared above before updatePlayer())
  if (player.speedMultiplier > SPEED_NORMAL_MAX) {
  speedStats.fast += dtMs;
  } else if (player.speedMultiplier < SPEED_NORMAL_MIN) {
