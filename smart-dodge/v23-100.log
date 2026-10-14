@@ -1,0 +1,148 @@
+[g0] score= 5829 t= 41s d= 2259m b= 900 L72/R64/U268/D4/·85 mObsT=0 cdT=4 s20=19 s30=29 [collision obs@43px CONE mv=5 bombs@0/s@0] (43.0s) err=none
+[g1] score= 8014 t= 63s d= 3292m b= 800 L145/R111/U324/D6/·160 mObsT=77 cdT=37 s20=19 s30=29 [collision obs@47px ROCK mv=11 bombs@0/s@0] (64.2s) err=none
+[g2] score= 6235 t= 44s d= 2397m b=1000 L75/R68/U283/D6/·95 mObsT=13 cdT=9 s20=19 s30=29 [collision obs@42px ROCK mv=5 bombs@0/s@0] (45.4s) err=none
+[g3] score= 6385 t= 46s d= 2562m b= 800 L69/R86/U294/D2/·103 mObsT=13 cdT=9 s20=19 s30=29 [collision obs@43px ROCK mv=7 bombs@0/s@0] (47.8s) err=none
+[g4] score= 7554 t= 56s d= 2997m b=1000 L111/R92/U326/D4/·144 mObsT=51 cdT=47 s20=19 s30=29 [collision obs@43px ROCK mv=9 bombs@0/s@0] (57.7s) err=none
+[g5] score= 7717 t= 55s d= 2933m b=1300 L121/R115/U310/D7/·107 mObsT=52 cdT=29 s20=19 s30=29 [collision obs@40px CONE mv=7 bombs@1/s@0] (56.5s) err=none
+[g6] score= 5946 t= 43s d= 2358m b= 800 L82/R89/U269/D3/·73 mObsT=18 cdT=11 s20=19 s30=29 [collision obs@40px CONE mv=7 bombs@0/s@1] (44.6s) err=none
+[g7] score= 8256 t= 62s d= 3268m b=1100 L114/R125/U328/D10/·157 mObsT=65 cdT=43 s20=19 s30=29 [bomb obs@51px CONE mv=13 bombs@1/s@0] (63.7s) err=none
+[g8] score= 6701 t= 50s d= 2800m b= 600 L85/R80/U340/D1/·83 mObsT=28 cdT=19 s20=19 s30=29 [collision obs@42px CONE mv=5 bombs@0/s@0] (50.9s) err=none
+[g9] score= 7381 t= 54s d= 2870m b=1100 L95/R85/U318/D7/·136 mObsT=48 cdT=21 s20=19 s30=29 [collision obs@43px PUDDLE mv=5 bombs@1/s@0] (55.1s) err=none
+>>> Progress: 10/100 games done. avg=7001.8 min=5829 max=8256 (saved to smart23-100-progress.json)
+[g10] score= 5693 t= 42s d= 2336m b= 600 L99/R79/U284/D4/·39 mObsT=7 cdT=0 s20=19 s30=29 [collision obs@43px CONE mv=5 bombs@0/s@0] (43.5s) err=none
+[g11] score= 6441 t= 44s d= 2550m b= 900 L64/R57/U334/D0/·69 mObsT=12 cdT=5 s20=19 s30=29 [collision obs@43px ROCK mv=7 bombs@0/s@0] (45.4s) err=none
+[g12] score= 6611 t= 50s d= 2655m b= 800 L103/R91/U274/D11/·120 mObsT=45 cdT=38 s20=19 s30=29 [collision obs@42px ROCK mv=6 bombs@1/s@0] (51.8s) err=none
+[g13] score= 5764 t= 42s d= 2322m b= 700 L76/R93/U246/D9/·81 mObsT=5 cdT=8 s20=19 s30=29 [collision obs@42px ROCK mv=5 bombs@0/s@0] (43.7s) err=none
+[g14] score= 6355 t= 45s d= 2502m b= 900 L84/R83/U280/D0/·84 mObsT=0 cdT=6 s20=19 s30=29 [collision obs@43px CONE mv=5 bombs@0/s@0] (46.0s) err=none
+[g15] score= 5997 t= 43s d= 2533m b= 500 L75/R42/U346/D5/·44 mObsT=16 cdT=5 s20=19 s30=29 [collision obs@43px ROCK mv=7 bombs@0/s@0] (44.6s) err=none
+[g16] score= 6618 t= 46s d= 2579m b=1000 L65/R67/U329/D7/·79 mObsT=18 cdT=17 s20=19 s30=29 [collision obs@41px ROCK mv=7 bombs@1/s@0] (47.2s) err=none
+[g17] score= 5854 t= 43s d= 2312m b= 800 L101/R86/U245/D1/·81 mObsT=5 cdT=7 s20=19 s30=29 [collision obs@42px CONE mv=5 bombs@0/s@0] (44.1s) err=none
+[g18] score= 5687 t= 42s d= 2333m b= 600 L75/R66/U287/D8/·69 mObsT=12 cdT=5 s20=19 s30=29 [collision obs@41px PUDDLE mv=6 bombs@0/s@0] (43.5s) err=none
+[g19] score= 6206 t= 46s d= 2523m b= 700 L89/R98/U285/D2/·81 mObsT=38 cdT=19 s20=19 s30=29 [collision obs@43px CONE mv=6 bombs@0/s@0] (47.5s) err=none
+>>> Progress: 20/100 games done. avg=6562.2 min=5687 max=8256 (saved to smart23-100-progress.json)
+[g20] score= 5385 t= 41s d= 2287m b= 400 L80/R79/U265/D0/·69 mObsT=1 cdT=4 s20=19 s30=29 [collision obs@43px CONE mv=4 bombs@0/s@0] (42.5s) err=none
+[g21] score= 6191 t= 44s d= 2525m b= 700 L71/R70/U319/D2/·61 mObsT=12 cdT=6 s20=19 s30=29 [collision obs@43px CONE mv=4 bombs@1/s@0] (44.8s) err=none
+[g22] score= 6744 t= 45s d= 2497m b=1300 L90/R71/U286/D1/·94 mObsT=20 cdT=10 s20=19 s30=29 [collision obs@43px PUDDLE mv=5 bombs@1/s@0] (46.6s) err=none
+[g23] score= 7960 t= 58s d= 3140m b=1100 L107/R101/U319/D3/·150 mObsT=53 cdT=26 s20=19 s30=29 [collision obs@37px PUDDLE mv=7 bombs@0/s@0] (59.4s) err=none
+[g24] score= 5977 t= 43s d= 2373m b= 800 L75/R71/U291/D0/·72 mObsT=3 cdT=5 s20=19 s30=29 [collision obs@42px PUDDLE mv=5 bombs@0/s@0] (44.3s) err=none
+[g25] score= 6932 t= 55s d= 2891m b= 600 L106/R94/U303/D6/·136 mObsT=66 cdT=28 s20=19 s30=29 [collision obs@43px CONE mv=8 bombs@0/s@0] (56.4s) err=none
+[g26] score= 8607 t= 58s d= 3213m b=1600 L102/R107/U370/D2/·105 mObsT=53 cdT=42 s20=19 s30=29 [collision obs@42px PUDDLE mv=6 bombs@0/s@0] (59.3s) err=none
+[g27] score= 8277 t= 61s d= 3283m b=1100 L99/R102/U345/D11/·163 mObsT=60 cdT=28 s20=19 s30=29 [collision obs@43px CONE mv=13 bombs@0/s@0] (62.7s) err=none
+[g28] score= 5502 t= 43s d= 2286m b= 500 L86/R97/U251/D3/·78 mObsT=9 cdT=1 s20=19 s30=29 [collision obs@43px ROCK mv=5 bombs@0/s@0] (44.5s) err=none
+[g29] score= 7762 t= 55s d= 2956m b=1300 L86/R95/U290/D0/·178 mObsT=36 cdT=17 s20=19 s30=29 [collision obs@43px PUDDLE mv=8 bombs@0/s@1] (56.5s) err=none
+>>> Progress: 30/100 games done. avg=6686.0 min=5385 max=8607 (saved to smart23-100-progress.json)
+[g30] score= 5663 t= 44s d= 2361m b= 500 L69/R81/U261/D14/·97 mObsT=27 cdT=9 s20=19 s30=29 [collision obs@41px CONE mv=5 bombs@0/s@0] (45.7s) err=none
+[g31] score= 5577 t= 39s d= 2293m b= 600 L58/R49/U312/D2/·38 mObsT=0 cdT=0 s20=19 s30=29 [collision obs@41px PUDDLE mv=0 bombs@1/s@0] (40.0s) err=none
+[g32] score= 5872 t= 43s d= 2321m b= 800 L80/R77/U273/D5/·69 mObsT=3 cdT=1 s20=19 s30=29 [collision obs@43px CONE mv=5 bombs@0/s@0] (43.9s) err=none
+[g33] score= 5862 t= 42s d= 2321m b= 800 L80/R68/U278/D0/·76 mObsT=1 cdT=4 s20=19 s30=29 [collision obs@43px PUDDLE mv=7 bombs@0/s@0] (43.5s) err=none
+[g34] score= 8267 t= 62s d= 3373m b= 900 L118/R113/U380/D6/·117 mObsT=95 cdT=45 s20=19 s30=29 [collision obs@48px ROCK mv=12 bombs@0/s@0] (63.6s) err=none
+[g35] score= 6016 t= 45s d= 2483m b= 600 L62/R79/U281/D0/·111 mObsT=27 cdT=18 s20=19 s30=29 [collision obs@43px ROCK mv=6 bombs@1/s@0] (46.7s) err=none
+[g36] score= 6060 t= 41s d= 2375m b= 900 L63/R60/U301/D2/·62 mObsT=2 cdT=1 s20=19 s30=29 [collision obs@43px PUDDLE mv=6 bombs@0/s@0] (42.5s) err=none
+[g37] score= 5615 t= 41s d= 2302m b= 600 L64/R66/U281/D5/·73 mObsT=0 cdT=2 s20=19 s30=29 [collision obs@41px PUDDLE mv=5 bombs@0/s@0] (42.7s) err=none
+[g38] score= 5391 t= 41s d= 2290m b= 400 L81/R58/U257/D1/·89 mObsT=7 cdT=0 s20=19 s30=29 [collision obs@43px CONE mv=5 bombs@0/s@0] (42.3s) err=none
+[g39] score= 6538 t= 46s d= 2489m b=1100 L85/R96/U276/D7/·73 mObsT=11 cdT=5 s20=19 s30=29 [collision obs@41px ROCK mv=7 bombs@1/s@0] (47.1s) err=none
+>>> Progress: 40/100 games done. avg=6536.1 min=5385 max=8607 (saved to smart23-100-progress.json)
+[g40] score= 6933 t= 48s d= 2676m b=1100 L77/R85/U328/D0/·80 mObsT=22 cdT=14 s20=19 s30=29 [collision obs@43px PUDDLE mv=6 bombs@0/s@0] (49.6s) err=none
+[g41] score= 7703 t= 57s d= 3116m b= 900 L112/R141/U321/D6/·92 mObsT=43 cdT=46 s20=19 s30=29 [collision obs@43px CONE mv=8 bombs@1/s@0] (58.5s) err=none
+[g42] score= 5329 t= 43s d= 2299m b= 300 L77/R100/U261/D9/·55 mObsT=16 cdT=3 s20=19 s30=29 [collision obs@42px CONE mv=6 bombs@1/s@0] (43.9s) err=none
+[g43] score= 7144 t= 52s d= 2912m b= 800 L100/R57/U363/D8/·81 mObsT=32 cdT=17 s20=19 s30=29 [collision obs@42px PUDDLE mv=7 bombs@0/s@0] (52.7s) err=none
+[g44] score= 5720 t= 42s d= 2350m b= 600 L69/R72/U262/D6/·84 mObsT=13 cdT=3 s20=19 s30=29 [collision obs@43px CONE mv=7 bombs@0/s@0] (43.1s) err=none
+[g45] score= 5846 t= 44s d= 2403m b= 600 L81/R82/U276/D5/·74 mObsT=11 cdT=9 s20=19 s30=29 [collision obs@41px PUDDLE mv=6 bombs@0/s@0] (45.5s) err=none
+[g46] score= 6278 t= 45s d= 2514m b= 800 L82/R84/U302/D2/·61 mObsT=23 cdT=13 s20=19 s30=29 [collision obs@42px ROCK mv=7 bombs@0/s@0] (46.2s) err=none
+[g47] score= 5056 t= 36s d= 2148m b= 400 L51/R43/U310/D5/·17 mObsT=0 cdT=0 s20=19 s30=29 [collision obs@42px CONE mv=0 bombs@1/s@0] (36.9s) err=none
+[g48] score= 6276 t= 46s d= 2558m b= 700 L50/R67/U309/D3/·114 mObsT=6 cdT=5 s20=19 s30=29 [collision obs@38px ROCK mv=5 bombs@0/s@0] (47.3s) err=none
+[g49] score= 5535 t= 41s d= 2312m b= 500 L69/R72/U274/D0/·71 mObsT=0 cdT=3 s20=19 s30=29 [collision obs@42px CONE mv=6 bombs@0/s@0] (42.6s) err=none
+>>> Progress: 50/100 games done. avg=6465.2 min=5056 max=8607 (saved to smart23-100-progress.json)
+[g50] score= 6662 t= 49s d= 2686m b= 800 L80/R68/U308/D3/·115 mObsT=31 cdT=16 s20=19 s30=29 [collision obs@43px ROCK mv=5 bombs@1/s@0] (50.2s) err=none
+[g51] score= 8654 t= 65s d= 3402m b=1200 L107/R110/U338/D24/·187 mObsT=139 cdT=46 s20=19 s30=29 [collision obs@47px ROCK mv=14 bombs@0/s@1] (66.8s) err=none
+[g52] score= 6366 t= 48s d= 2593m b= 700 L89/R81/U295/D1/·104 mObsT=26 cdT=16 s20=19 s30=29 [collision obs@42px PUDDLE mv=8 bombs@0/s@0] (49.2s) err=none
+[g53] score= 7584 t= 54s d= 2922m b=1200 L91/R102/U324/D0/·120 mObsT=56 cdT=29 s20=19 s30=29 [collision obs@43px ROCK mv=6 bombs@1/s@0] (54.9s) err=none
+[g54] score= 4587 t= 34s d= 1923m b= 400 L51/R46/U243/D3/·61 mObsT=0 cdT=0 s20=19 s30=29 [collision obs@43px ROCK mv=0 bombs@0/s@0] (35.4s) err=none
+[g55] score= 6432 t= 47s d= 2581m b= 800 L91/R72/U284/D9/·102 mObsT=13 cdT=19 s20=19 s30=29 [collision obs@43px CONE mv=8 bombs@1/s@0] (48.2s) err=none
+[g56] score= 5748 t= 42s d= 2314m b= 700 L62/R71/U283/D7/·72 mObsT=12 cdT=2 s20=19 s30=29 [collision obs@40px ROCK mv=7 bombs@1/s@0] (43.1s) err=none
+[g57] score= 5438 t= 41s d= 2264m b= 500 L58/R68/U276/D0/·84 mObsT=2 cdT=1 s20=19 s30=29 [collision obs@43px PUDDLE mv=3 bombs@0/s@0] (42.1s) err=none
+[g58] score= 6020 t= 42s d= 2450m b= 700 L54/R74/U317/D5/·39 mObsT=10 cdT=2 s20=19 s30=29 [collision obs@41px ROCK mv=6 bombs@0/s@0] (43.0s) err=none
+[g59] score= 6618 t= 47s d= 2574m b=1000 L90/R72/U296/D2/·95 mObsT=26 cdT=17 s20=19 s30=29 [collision obs@42px ROCK mv=5 bombs@1/s@0] (48.5s) err=none
+>>> Progress: 60/100 games done. avg=6456.2 min=4587 max=8654 (saved to smart23-100-progress.json)
+[g60] score= 7072 t= 54s d= 2866m b= 800 L102/R89/U312/D11/·114 mObsT=78 cdT=36 s20=19 s30=29 [collision obs@34px ROCK mv=8 bombs@0/s@1] (54.9s) err=none
+[g61] score= 7598 t= 55s d= 2924m b=1200 L99/R102/U314/D8/·122 mObsT=31 cdT=25 s20=19 s30=29 [collision obs@42px CONE mv=5 bombs@0/s@0] (56.1s) err=none
+[g62] score= 8206 t= 59s d= 3258m b=1100 L117/R116/U380/D0/·73 mObsT=39 cdT=31 s20=19 s30=29 [collision obs@42px PUDDLE mv=7 bombs@0/s@1] (59.8s) err=none
+[g63] score= 6415 t= 47s d= 2622m b= 700 L65/R103/U313/D6/·67 mObsT=15 cdT=14 s20=19 s30=29 [collision obs@41px PUDDLE mv=7 bombs@1/s@0] (48.7s) err=none
+[g64] score= 6693 t= 45s d= 2571m b=1100 L63/R63/U314/D4/·91 mObsT=11 cdT=7 s20=19 s30=29 [collision obs@43px PUDDLE mv=5 bombs@0/s@1] (46.7s) err=none
+[g65] score= 5211 t= 37s d= 2120m b= 600 L55/R56/U277/D5/·49 mObsT=0 cdT=0 s20=19 s30=29 [collision obs@43px ROCK mv=0 bombs@1/s@0] (38.4s) err=none
+[g66] score= 6027 t= 45s d= 2488m b= 600 L75/R106/U291/D5/·57 mObsT=7 cdT=12 s20=19 s30=29 [collision obs@41px PUDDLE mv=5 bombs@0/s@1] (46.4s) err=none
+[g67] score= 6143 t= 45s d= 2446m b= 800 L83/R83/U264/D0/·96 mObsT=7 cdT=16 s20=19 s30=29 [collision obs@43px PUDDLE mv=7 bombs@0/s@0] (46.2s) err=none
+[g68] score= 6439 t= 44s d= 2499m b=1000 L82/R79/U274/D0/·91 mObsT=4 cdT=8 s20=19 s30=29 [collision obs@42px ROCK mv=5 bombs@0/s@0] (45.6s) err=none
+[g69] score= 6866 t= 52s d= 2773m b= 800 L96/R109/U307/D18/·83 mObsT=41 cdT=31 s20=19 s30=29 [bomb obs@64px PUDDLE mv=8 bombs@1/s@0] (53.5s) err=none
+>>> Progress: 70/100 games done. avg=6486.3 min=4587 max=8654 (saved to smart23-100-progress.json)
+[g70] score= 5462 t= 43s d= 2416m b= 200 L104/R72/U282/D1/·52 mObsT=4 cdT=11 s20=19 s30=29 [collision obs@43px ROCK mv=8 bombs@0/s@0] (44.8s) err=none
+[g71] score= 6009 t= 43s d= 2489m b= 600 L68/R76/U321/D3/·46 mObsT=11 cdT=6 s20=19 s30=29 [collision obs@43px PUDDLE mv=6 bombs@0/s@0] (44.6s) err=none
+[g72] score= 5828 t= 41s d= 2359m b= 700 L43/R48/U318/D8/·72 mObsT=10 cdT=1 s20=19 s30=29 [collision obs@42px ROCK mv=4 bombs@0/s@0] (42.4s) err=none
+[g73] score= 5994 t= 46s d= 2517m b= 500 L90/R87/U303/D5/·60 mObsT=20 cdT=11 s20=19 s30=29 [collision obs@42px ROCK mv=8 bombs@0/s@1] (47.2s) err=none
+[g74] score= 6038 t= 43s d= 2354m b= 900 L89/R77/U253/D2/·88 mObsT=21 cdT=6 s20=19 s30=29 [collision obs@42px CONE mv=7 bombs@0/s@0] (44.6s) err=none
+[g75] score= 5863 t= 42s d= 2321m b= 800 L68/R75/U272/D3/·80 mObsT=4 cdT=5 s20=19 s30=29 [collision obs@41px CONE mv=6 bombs@1/s@0] (43.1s) err=none
+[g76] score= 6913 t= 49s d= 2711m b=1000 L87/R96/U315/D6/·76 mObsT=26 cdT=22 s20=19 s30=29 [collision obs@40px CONE mv=8 bombs@1/s@0] (50.5s) err=none
+[g77] score= 7741 t= 63s d= 3255m b= 600 L111/R132/U314/D8/·176 mObsT=82 cdT=45 s20=19 s30=29 [collision obs@43px PUDDLE mv=10 bombs@1/s@0] (64.8s) err=none
+[g78] score= 6517 t= 45s d= 2633m b= 800 L71/R102/U319/D0/·46 mObsT=12 cdT=11 s20=19 s30=29 [collision obs@42px CONE mv=8 bombs@1/s@0] (46.8s) err=none
+[g79] score= 7704 t= 57s d= 3167m b= 800 L89/R105/U347/D7/·124 mObsT=41 cdT=27 s20=19 s30=29 [collision obs@41px PUDDLE mv=8 bombs@1/s@0] (58.5s) err=none
+>>> Progress: 80/100 games done. avg=6476.4 min=4587 max=8654 (saved to smart23-100-progress.json)
+[g80] score= 7548 t= 54s d= 2904m b=1200 L103/R107/U295/D0/·126 mObsT=30 cdT=31 s20=19 s30=29 [collision obs@43px ROCK mv=6 bombs@1/s@0] (55.4s) err=none
+[g81] score= 7356 t= 54s d= 2858m b=1100 L114/R110/U307/D6/·93 mObsT=54 cdT=38 s20=19 s30=29 [collision obs@40px PUDDLE mv=8 bombs@0/s@1] (54.9s) err=none
+[g82] score= 7378 t= 53s d= 2974m b= 900 L85/R95/U358/D2/·77 mObsT=49 cdT=31 s20=19 s30=29 [collision obs@43px CONE mv=7 bombs@0/s@0] (54.0s) err=none
+[g83] score= 6050 t= 44s d= 2455m b= 700 L78/R73/U291/D2/·77 mObsT=6 cdT=10 s20=19 s30=29 [collision obs@41px PUDDLE mv=4 bombs@0/s@0] (45.7s) err=none
+[g84] score= 5656 t= 43s d= 2313m b= 600 L73/R70/U262/D5/·94 mObsT=14 cdT=5 s20=19 s30=29 [collision obs@43px PUDDLE mv=5 bombs@0/s@0] (44.0s) err=none
+[g85] score= 6240 t= 43s d= 2455m b= 900 L62/R71/U313/D0/·60 mObsT=5 cdT=4 s20=19 s30=29 [collision obs@43px ROCK mv=4 bombs@0/s@0] (44.3s) err=none
+[g86] score= 6253 t= 45s d= 2501m b= 800 L72/R63/U298/D2/·94 mObsT=5 cdT=11 s20=19 s30=29 [collision obs@43px CONE mv=6 bombs@0/s@0] (46.3s) err=none
+[g87] score= 5157 t= 35s d= 2053m b= 700 L58/R62/U254/D0/·46 mObsT=0 cdT=0 s20=19 s30=29 [collision obs@43px CONE mv=0 bombs@0/s@0] (36.8s) err=none
+[g88] score= 6981 t= 54s d= 2870m b= 700 L91/R94/U307/D8/·131 mObsT=35 cdT=21 s20=19 s30=29 [collision obs@40px CONE mv=9 bombs@0/s@1] (55.0s) err=none
+[g89] score= 5668 t= 44s d= 2414m b= 400 L86/R79/U276/D3/·76 mObsT=18 cdT=2 s20=18 s30=28 [collision obs@43px CONE mv=5 bombs@0/s@0] (46.0s) err=none
+>>> Progress: 90/100 games done. avg=6471.1 min=4587 max=8654 (saved to smart23-100-progress.json)
+[g90] score= 7315 t= 50s d= 2807m b=1200 L85/R107/U342/D0/·62 mObsT=28 cdT=26 s20=19 s30=29 [collision obs@42px ROCK mv=6 bombs@0/s@1] (51.6s) err=none
+[g91] score= 6154 t= 41s d= 2372m b=1000 L68/R56/U307/D3/·47 mObsT=0 cdT=2 s20=19 s30=29 [collision obs@42px ROCK mv=4 bombs@0/s@0] (42.2s) err=none
+[g92] score= 7844 t= 57s d= 3087m b=1100 L95/R94/U324/D2/·159 mObsT=42 cdT=29 s20=19 s30=29 [collision obs@43px CONE mv=6 bombs@0/s@0] (58.7s) err=none
+[g93] score= 6032 t= 42s d= 2356m b= 900 L74/R65/U277/D4/·77 mObsT=3 cdT=3 s20=19 s30=29 [collision obs@40px PUDDLE mv=5 bombs@1/s@0] (43.3s) err=none
+[g94] score= 5795 t= 42s d= 2437m b= 500 L50/R57/U323/D2/·62 mObsT=4 cdT=1 s20=19 s30=29 [collision obs@43px CONE mv=6 bombs@1/s@0] (42.9s) err=none
+[g95] score= 6569 t= 46s d= 2554m b=1000 L80/R87/U303/D0/·77 mObsT=11 cdT=12 s20=19 s30=29 [collision obs@43px ROCK mv=5 bombs@1/s@0] (47.3s) err=none
+[g96] score= 6208 t= 46s d= 2524m b= 700 L91/R101/U294/D2/·56 mObsT=21 cdT=22 s20=19 s30=29 [collision obs@43px ROCK mv=6 bombs@0/s@0] (47.8s) err=none
+[g97] score= 7887 t= 59s d= 3198m b= 900 L117/R140/U357/D19/·69 mObsT=63 cdT=41 s20=19 s30=29 [collision obs@39px CONE mv=10 bombs@1/s@0] (60.6s) err=none
+[g98] score= 8254 t= 63s d= 3362m b= 900 L132/R138/U344/D13/·114 mObsT=53 cdT=42 s20=19 s30=29 [collision obs@45px PUDDLE mv=13 bombs@0/s@0] (64.5s) err=none
+[g99] score= 5946 t= 44s d= 2453m b= 600 L77/R70/U286/D0/·87 mObsT=10 cdT=5 s20=19 s30=29 [collision obs@43px ROCK mv=5 bombs@1/s@0] (45.3s) err=none
+>>> Progress: 100/100 games done. avg=6504.0 min=4587 max=8654 (saved to smart23-100-progress.json)
+
+=== SMART23 100-GAME VALIDATION SUMMARY ===
+SMART23 (n=100): score 4587-8654 avg=6504.0 median=6265 stddev=899.6 | time 34-65s avg=47.4s | dist 1923-3402m avg=2611.7m | bonus 200-1600 avg=806.0
+Score percentiles: 10th=5502 | 25th=5846 | 50th=6253 | 75th=7072 | 90th=7844
+
+--- Cause of death distribution ---
+Bomb deaths: 2/100 (2.0%)
+  collision:ROCK:moving: 33 (33.0%)
+  collision:CONE:moving: 32 (32.0%)
+  collision:PUDDLE:moving: 28 (28.0%)
+  collision:CONE:static: 2 (2.0%)
+  collision:ROCK:static: 2 (2.0%)
+  bomb:CONE:moving: 1 (1.0%)
+  collision:PUDDLE:static: 1 (1.0%)
+  bomb:PUDDLE:moving: 1 (1.0%)
+
+--- Survival time ---
+Short (<30s): 0 | Medium (30-49s): 69 | Long (>=50s): 31
+
+--- Bomb proximity at death ---
+Avg bombs in 300px at death: 0.3 | games with bombs at death: 32/100
+Avg moving obs at death: 6.3
+Distance at death: 1923-3402m avg=2611.7m
+
+--- Avg score by cause ---
+  collision:ROCK (n=35): avg=6467 range=4587-8654
+  collision:CONE (n=34): avg=6344 range=5056-8277
+  collision:PUDDLE (n=29): avg=6664 range=5438-8607
+  bomb:CONE (n=1): avg=8256 range=8256-8256
+  bomb:PUDDLE (n=1): avg=6866 range=6866-6866
+
+=== COMPARISON ===
+smart4(10)         (n=10): score 3622-5831 avg=4353.0
+smart4(100)        (n=100): score 1710-5936 avg=4130.6
+smart15(10)        (n=10): score 3654-5863 avg=4569.4
+smart22(10)        (n=10): score 3417-7968 avg=5408.7
+smart23(10)        (n=10): score 5750-8407 avg=6743.4
+smart23(100)       (n=100): score 4587-8654 avg=6504.0

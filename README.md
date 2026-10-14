@@ -24,3 +24,18 @@ Canvas-based endless runner game — dodge obstacles, collect stars, avoid bombs
 Just open `index.html` in any modern browser. No build step, no dependencies.
 
 Works on desktop (keyboard) and mobile (touch buttons).
+
+## 🤖 AI Player (smart-dodge/)
+
+自動玩 AI 喺 [`smart-dodge/`](./smart-dodge/) folder。
+
+- **V23 驗證結果 (n=100):** avg 6504，max 8654，bomb death 2%
+- **vs baseline (V4 n=100):** +57.5% 分數提升
+- 詳見 [smart-dodge/README.md](./smart-dodge/README.md) 同 [100 局 data](./smart-dodge/v23-100-results.json)
+
+### Quick run
+```bash
+cd smart-dodge/
+npm install
+node smart23.js
+```
