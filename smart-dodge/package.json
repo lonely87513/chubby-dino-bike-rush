@@ -1,0 +1,26 @@
+{
+  "name": "chubby-dino-smart-dodge",
+  "version": "1.0.0",
+  "description": "AI 自動玩 Chubby Dino Bike Rush - V23 (avg 6504 n=100, +57.5% vs baseline)",
+  "main": "smart23.js",
+  "scripts": {
+    "test": "echo \"See README.md for usage\"",
+    "v23": "node smart23.js",
+    "v23-single": "node smart23-single.js"
+  },
+  "keywords": [
+    "ai",
+    "playwright",
+    "game-ai",
+    "dodge",
+    "chubby-dino"
+  ],
+  "dependencies": {
+    "playwright": "^1.40.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "author": "Cin Nam (OpenClaw AI)",
+  "license": "MIT"
+}
