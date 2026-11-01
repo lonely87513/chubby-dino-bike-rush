@@ -399,6 +399,26 @@
  const ctx = canvas.getContext('2d');
 
  // ============================================================
+ // Frame-rate independence (2026-11-01 bugfix)
+ // ============================================================
+ // 原本整個 simulation 靠「per-frame 常數」推進：加速 +0.03/frame、
+ // steering 0.85/frame、障礙位移 currentRoadSpeed/frame、障礙每 N frame 生成一隻、
+ // distance +0.12/frame。喺 60fps 啱啱好，但：
+ //   • 120Hz / 144Hz 螢幕 → 全世界快一倍，障礙密度約 4 倍（難度失衡）
+ //   • 30fps / 分頁 throttling / 舊手機 → 慢一半（實測 distance 只 accrue 到 38%）
+ // 而家全部改用 dt-scaling，基準 = 60fps（dtF = 1.0），所以 60fps 行為維持不變。
+ const FRAME_60_MS = 1000 / 60;   // 基準 frame 時間（60fps）
+ const MAX_DT_MS  = 100;          // dt 上限：避免掉幀 / 切走分頁造成 huge spike
+ // 舊 code 內「per-frame 常數」係用 16ms/frame 寫嘅（隱含 62.5fps）。
+ // Transition 速率要完全保留原本 60fps 行為，就用呢個換算：
+ //   每 ms 增量 = (LEGACY_FRAME_MS / DUR) / FRAME_60_MS
+ // 咁樣 60fps 之下 transition 完成時間同舊版一模一樣（唔會順手改遊戲平衡）。
+ const LEGACY_FRAME_MS = 16;
+ // 浮點容差：累加 60Hz 等效幀數時會有 1-ULP 誤差，令「== 間隔」嘅判斷
+ // 偶發偏一幀（60fps 之下少生成一隻障礙）。1e-6 對 60Hz 節奏完全唔會有感。
+ const DT_EPSILON = 1e-6;
+
+ // ============================================================
  // Audio System (procedural Web Audio API — no external files)
  // ============================================================
  let audioCtx = null;
@@ -411,6 +431,10 @@ let speedStats = { fast: 0, normal: 0, slow: 0 };
 // Weather distribution statistics (ms accumulated in each weather state)
 let weatherStats = { sunny: 0, rain: 0, snow: 0, fog: 0, thunderstorm: 0 };
 let lastElapsedSec = 0;
+// dt 用 performance.now()（高精度、單調時鐘），唔用 Date.now()。
+// Date.now() 只有 1ms 精度 → dtF 會喺 0.96 / 1.02 之間跳，令「60Hz 等效幀數」
+// 慢慢漂移，障礙生成時機偏一幀。performance.now() 冇呢個問題。
+let lastFramePerfMs = null;
 // Threshold for "normal" speed band; outside this counts as fast (up) or slow (down)
 const SPEED_NORMAL_MIN = 0.95;
 const SPEED_NORMAL_MAX = 1.05;
@@ -859,7 +883,7 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  // Settings & Dynamic Speeds
  const roadSpeedBase = 5.5;
  let currentRoadSpeed = roadSpeedBase;
- let obstacleTimer = 0;
+ let obstacleTimerMs = 0;
  const obstacleSpawnRateBase = 65;
  let currentObstacleSpawnRate = obstacleSpawnRateBase;
 
@@ -1062,7 +1086,7 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  // deltaMs: real frame time from gameLoop. Default 16ms keeps callers safe
  // (e.g. initial render) but the gameplay path passes actual measured dt
  // so 30fps devices don't stretch the transition to 3s.
- function updateRoadWidth(elapsedMs, deltaMs = 16) {
+ function updateRoadWidth(elapsedMs, deltaMs = FRAME_60_MS) {
   // 尚未到達下次變化時間 → 維持 in-flight 過渡；唔揀新 target。
   if (elapsedMs >= nextRoadChangeAtMs && roadTransitionT >= 1) {
    // 揀新嘅 target。35s 前用溫和 pool；35s+ 用全範圍。
@@ -1085,8 +1109,9 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
   }
 
   // Lerp 過渡（ease-out cubic）— 接受真實 frame delta，唔再 hardcode 16ms
+  // 速率用 LEGACY_FRAME_MS 換算，令 60fps 行為同舊版完全一致
   if (roadTransitionT < 1) {
-   roadTransitionT = Math.min(1, roadTransitionT + deltaMs / ROAD_TRANSITION_DUR_MS);
+   roadTransitionT = Math.min(1, roadTransitionT + deltaMs * (LEGACY_FRAME_MS / ROAD_TRANSITION_DUR_MS) / FRAME_60_MS);
    const e = 1 - Math.pow(1 - roadTransitionT, 3); // ease-out cubic
    currentRoadWidthRatio =
     startRoadWidthRatio + (targetRoadWidthRatio - startRoadWidthRatio) * e;
@@ -1171,11 +1196,11 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  }
 
  // 每個粒子 y > canvas.height 就 reset 到 y = 0（top recycling，防無窮增長）
- function updateRainParticles() {
+ function updateRainParticles(dtF = 1) {
   for (let i = 0; i < rainDrops.length; i++) {
    const d = rainDrops[i];
-   d.x += d.vx;
-   d.y += d.vy;
+   d.x += d.vx * dtF;
+   d.y += d.vy * dtF;
    if (d.y > canvas.height) {
     d.y = -d.len;
     d.x = Math.random() * canvas.width;
@@ -1184,12 +1209,12 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
   }
  }
 
- function updateSnowParticles() {
+ function updateSnowParticles(dtF = 1) {
   for (let i = 0; i < snowFlakes.length; i++) {
    const f = snowFlakes[i];
    // random drift — 每幀輕微左右擺動
-   f.x += f.vx + (Math.random() - 0.5) * 0.6;
-   f.y += f.vy;
+   f.x += (f.vx + (Math.random() - 0.5) * 0.6) * dtF;
+   f.y += f.vy * dtF;
    if (f.y > canvas.height + 4) {
     f.y = -4;
     f.x = Math.random() * canvas.width;
@@ -1401,10 +1426,11 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  }
 
  // ----- §3.1.C Main update loop -----
- function updateWeather(elapsedMs) {
-  // 1) 過渡 t 漸進（線性，16ms / 3000ms ≈ 0.533% / frame）
+ function updateWeather(elapsedMs, deltaMs = FRAME_60_MS, dtF = deltaMs / FRAME_60_MS) {
+  // 1) 過渡 t 漸進（線性，用真實 frame delta，唔再 hardcode 16ms）
+  // 速率用 LEGACY_FRAME_MS 換算，令 60fps 行為同舊版完全一致
   if (weatherTransitionT < 1) {
-   weatherTransitionT = Math.min(1, weatherTransitionT + 16 / WEATHER_TRANSITION_DUR_MS);
+   weatherTransitionT = Math.min(1, weatherTransitionT + deltaMs * (LEGACY_FRAME_MS / WEATHER_TRANSITION_DUR_MS) / FRAME_60_MS);
    // t 一變就 invalidate profile cache，否則 drawWeatherOverlay() 拎到舊 profile
    invalidateWeatherCache();
    // 到達 1 時 commit 進 currentWeather + 啟動新 ambient audio
@@ -1434,13 +1460,13 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
   const profile = getCurrentWeatherProfile();
   if (profile.rainIntensity > 0) {
    ensureRainCount(profile.rainIntensity);
-   updateRainParticles();
+   updateRainParticles(dtF);
   } else if (rainDrops.length > 0) {
    rainDrops.length = 0;
   }
   if (profile.snowIntensity > 0) {
    ensureSnowCount(profile.snowIntensity);
-   updateSnowParticles();
+   updateSnowParticles(dtF);
   } else if (snowFlakes.length > 0) {
    snowFlakes.length = 0;
   }
@@ -1585,7 +1611,7 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  let sceneryTrees = [];
  let fallingItems = [];
  let floatingTexts = [];
- let itemSpawnTimer = 0;
+ let itemSpawnTimerMs = 0;
  // 動畫 C: speed-line particles (accelerating 期間 spawn)
  let speedLines = [];
 
@@ -1712,7 +1738,7 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  ctx.restore();
  }
 
- function drawBackgroundAndRoad() {
+ function drawBackgroundAndRoad(dtF = 1) {
  const roadWidth = getCurrentRoadWidth();
  const roadLeft = getCurrentRoadLeft();
 
@@ -1754,7 +1780,7 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  drawCrayonLine(ctx, roadLeft + roadWidth, 0, roadLeft + roadWidth, canvas.height, '#ffffff', 5, 2);
 
  // Yellow Dashed Center Line
- bgOffsetY += currentRoadSpeed * player.speedMultiplier;
+ bgOffsetY += currentRoadSpeed * player.speedMultiplier * dtF;
  const dashLen = 32;
  const gapLen = 24;
  const totalPattern = dashLen + gapLen;
@@ -1765,7 +1791,7 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  }
 
  // Scenery Trees
- if (Math.random() < 0.04) {
+ if (Math.random() < 0.04 * dtF) {
  const side = Math.random() < 0.5 ? 'left' : 'right';
  const tx = side === 'left' ? Math.random() * (roadLeft - 45) + 20 : roadLeft + roadWidth + 25 + Math.random() * (canvas.width - roadLeft - roadWidth - 45);
  sceneryTrees.push({ x: tx, y: -60, r: 20 + Math.random() * 10 });
@@ -1773,7 +1799,7 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
 
  for (let i = sceneryTrees.length - 1; i >= 0; i--) {
  let tree = sceneryTrees[i];
- tree.y += currentRoadSpeed * player.speedMultiplier;
+ tree.y += currentRoadSpeed * player.speedMultiplier * dtF;
  drawCrayonLine(ctx, tree.x, tree.y + tree.r, tree.x, tree.y + tree.r + 12, '#795548', 6, 2);
  drawRoughCircle(ctx, tree.x, tree.y, tree.r, '#26de81', '#20bf6b', 3.5);
  drawRoughCircle(ctx, tree.x - 4, tree.y - 4, tree.r * 0.45, '#7bed9f', null, 0);
@@ -1781,12 +1807,12 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  }
  }
 
- function drawTireTrails() {
+ function drawTireTrails(dtF = 1) {
  for (let i = player.trails.length - 1; i >= 0; i--) {
  let t = player.trails[i];
  // Scroll trail down along with the road
- t.y += currentRoadSpeed * player.speedMultiplier;
- t.alpha -= 0.012; // Slower fade for longer visible track lines
+ t.y += currentRoadSpeed * player.speedMultiplier * dtF;
+ t.alpha -= 0.012 * dtF; // Slower fade for longer visible track lines
 
  if (t.alpha <= 0 || t.y > canvas.height + 30) {
  player.trails.splice(i, 1);
@@ -1799,9 +1825,9 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  }
  }
 
- function drawPlayer() {
+ function drawPlayer(dtF = 1) {
  // 1) Tire tracks (existing)
- drawTireTrails();
+ drawTireTrails(dtF);
  // 2) Speed lines behind dino (accelerating 期間 spawn)
  drawSpeedLines();
 
@@ -1948,7 +1974,7 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  });
  }
 
- function updateAndDrawObstacles() {
+ function updateAndDrawObstacles(dtF = 1) {
  const roadWidth = getCurrentRoadWidth();
  const roadLeft = getCurrentRoadLeft();
 
@@ -1958,12 +1984,12 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
 
  for (let i = obstacles.length - 1; i >= 0; i--) {
  let obs = obstacles[i];
- obs.y += currentRoadSpeed * player.speedMultiplier;
+ obs.y += currentRoadSpeed * player.speedMultiplier * dtF;
 
  // Horizontal movement after 30s
  if (obs.isMoving) {
- obs.oscAngle += 0.05;
- obs.x += obs.vx + Math.sin(obs.oscAngle) * 0.8;
+ obs.oscAngle += 0.05 * dtF;
+ obs.x += (obs.vx + Math.sin(obs.oscAngle) * 0.8) * dtF;
 
  // Bounce off road margins
  if (obs.x < roadLeft + 25) {
@@ -2046,14 +2072,14 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  });
  }
 
- function updateAndDrawFallingItems() {
+ function updateAndDrawFallingItems(dtF = 1) {
  // Apply weather visionAlpha（fog 期間掉落物淡出）
  ctx.save();
  ctx.globalAlpha = currentVisionAlpha;
 
  for (let i = fallingItems.length - 1; i >= 0; i--) {
  let item = fallingItems[i];
- item.y += (currentRoadSpeed * player.speedMultiplier) + 3.5;
+ item.y += ((currentRoadSpeed * player.speedMultiplier) + 3.5) * dtF;
 
  // Draw Sky Falling Item
  if (item.isBomb) {
@@ -2133,12 +2159,17 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  const minX = roadLeft + player.width * 0.4;
  const maxX = roadLeft + roadWidth - player.width * 0.4;
 
- // Steering (Left / Right)
- if (keys.left) player.velX -= 0.85;
- if (keys.right) player.velX += 0.85;
+ // dtF：1.0 @60fps（行為完全不變），其他幀率按比例補償
+ const dtF = (dtMs || FRAME_60_MS) / FRAME_60_MS;
 
- player.velX *= currentFriction; // Inertia damping (weather-modulated)
- player.x += player.velX;
+ // Steering (Left / Right)
+ if (keys.left) player.velX -= 0.85 * dtF;
+ if (keys.right) player.velX += 0.85 * dtF;
+
+ // Inertia damping (weather-modulated) — 用 pow() 做連續時間衰減，
+ // 令「每幀衰減一次」唔會喺高幀率下變成衰減兩次
+ player.velX *= Math.pow(currentFriction, dtF);
+ player.x += player.velX * dtF;
 
  // Clamp inside road
  if (player.x < minX) {
@@ -2151,18 +2182,19 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
 
  // Acceleration / Deceleration (Up / Down)
  if (keys.up) {
- player.speedMultiplier = Math.min(player.speedMultiplier + 0.03, currentSpeedCap);
+ player.speedMultiplier = Math.min(player.speedMultiplier + 0.03 * dtF, currentSpeedCap);
  player.targetY = player.baseY - 40;
  } else if (keys.down) {
- player.speedMultiplier = Math.max(player.speedMultiplier - 0.03, 0.6);
+ player.speedMultiplier = Math.max(player.speedMultiplier - 0.03 * dtF, 0.6);
  player.targetY = player.baseY + 30;
  } else {
- player.speedMultiplier += (1.0 - player.speedMultiplier) * 0.05;
+ // 指數衰減（連續時間）：1.0 @60fps = 原本嘅 0.05
+ player.speedMultiplier += (1.0 - player.speedMultiplier) * (1 - Math.pow(0.95, dtF));
  player.targetY = player.baseY;
  }
 
  // Smooth Y position shift when accelerating/braking
- player.y += (player.targetY - player.y) * 0.1;
+ player.y += (player.targetY - player.y) * (1 - Math.pow(0.9, dtF));
 
  // Determine trail color based on acceleration / deceleration state
  let trailColor = '#0984e3'; // Default Normal Speed: Blue
@@ -2176,6 +2208,8 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  if (player.trails.length > 200) player.trails.shift();
 
  // Continuously push tire tracks behind the rear wheel
+ // （密度跟 dtF：唔好喺 120Hz 留下一倍密嘅胎痕）
+ if (Math.random() < dtF) {
  player.trails.push({
  x: player.x + (Math.random() - 0.5) * 2,
  y: player.y + player.height * 0.28,
@@ -2183,6 +2217,7 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  alpha: 0.9,
  radius: 3.8
  });
+ }
 
  // 動畫 tick — frame-rate independent (60fps baseline)
  // E3: Reduced motion — freeze propeller / leg animation
@@ -2194,7 +2229,7 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
 
  // Speed line spawn — accelerating 期間喺車尾噴 vector 短線
  const isAccelerating = keys.up || player.speedMultiplier > 1.15;
- if (isAccelerating && Math.random() < 0.3) {
+ if (isAccelerating && Math.random() < 0.3 * dtF) {
  speedLines.push({
  x: player.x - player.width * 0.5,
  y: player.y + (Math.random() - 0.5) * player.height * 0.5,
@@ -2219,10 +2254,19 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
 
  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
- // Update survival time & distance
+ // dtMs hoisted early: needed by updatePlayer() before the stats block below
+ // Clamp dt：切走分頁再切返會出現 huge spike，唔夾實會令 distance / 障礙一次過爆衝
  const elapsed = (Date.now() - startTime) / 1000;
+ const nowPerf = performance.now();
+ let rawDtMs = 0;
+ if (lastFramePerfMs !== null) rawDtMs = nowPerf - lastFramePerfMs;
+ lastFramePerfMs = nowPerf;
+ const dtMs = Math.min(Math.max(rawDtMs, 0), MAX_DT_MS);
+ const dtF = dtMs / FRAME_60_MS;   // 1.0 @60fps，其他幀率自動補償
+
+ // Update survival time & distance
  score = Math.floor(elapsed);
- distance += (currentRoadSpeed * player.speedMultiplier) * 0.12;
+ distance += (currentRoadSpeed * player.speedMultiplier) * 0.12 * dtF;
 
  scoreElement.innerText = score;
  distElement.innerText = Math.floor(distance);
@@ -2231,18 +2275,14 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  const distPts = Math.floor(distance * 2);
  totalScore = timePts + distPts + bonusScore;
 
- // dtMs hoisted early: needed by updatePlayer() before the stats block below
- const dtMs = (elapsed - lastElapsedSec) * 1000;
- lastElapsedSec = elapsed;
-
  // Update entities (pass dtMs for frame-rate independent animations)
  updatePlayer(dtMs);
 
  // Update road width transition (affects all render/spawn/clamp paths)
- updateRoadWidth(elapsed * 1000);
+ updateRoadWidth(elapsed * 1000, dtMs);
 
  // Update weather system + sync gameplay modifiers (friction / speedCap / visionAlpha)
- updateWeather(elapsed * 1000);
+ updateWeather(elapsed * 1000, dtMs, dtF);
  const wProfile = getCurrentWeatherProfile();
  currentFriction    = wProfile.friction;
  currentSpeedCap    = wProfile.speedCap;
@@ -2284,9 +2324,10 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  }
  }
 
- // Spawn obstacles
- obstacleTimer++;
- if (obstacleTimer >= effectiveSpawnRate) {
+ // Spawn obstacles — 改用 ms 累積（原本 per-frame counter：120Hz 會快一倍生成）
+ const spawnIntervalMs = effectiveSpawnRate * FRAME_60_MS;
+ obstacleTimerMs += dtMs;
+ if (obstacleTimerMs >= spawnIntervalMs - DT_EPSILON) {
  // E1: Primary obstacle
  spawnObstacle(diffCfg.extraRadius);
  // E1: Secondary obstacle (30%/60%/90% chance in 40+/60+/80+s phases)
@@ -2297,21 +2338,21 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  if (diffPhase >= 4 && Math.random() < 0.30) {
  spawnObstacle(diffCfg.extraRadius);
  }
- obstacleTimer = 0;
+ obstacleTimerMs = 0;
  }
 
- // Spawn falling items (> 20s)
- itemSpawnTimer++;
- if (itemSpawnTimer >= 100) {
+ // Spawn falling items (> 20s) — 同樣改用 ms 累積
+ itemSpawnTimerMs += dtMs;
+ if (itemSpawnTimerMs >= 100 * FRAME_60_MS - DT_EPSILON) {
  spawnFallingItem();
- itemSpawnTimer = 0;
+ itemSpawnTimerMs = 0;
  }
 
  // Render scene
- drawBackgroundAndRoad();
- updateAndDrawObstacles();
- updateAndDrawFallingItems();
- drawPlayer();
+ drawBackgroundAndRoad(dtF);
+ updateAndDrawObstacles(dtF);
+ updateAndDrawFallingItems(dtF);
+ drawPlayer(dtF);
  updateAndDrawFloatingTexts();
  // Weather overlay goes LAST so it sits on top of everything (particles / fog / lightning flash)
  drawWeatherOverlay();
@@ -2346,6 +2387,8 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  keys.down = false;
  document.querySelectorAll('.touch-btn.pressed').forEach(b => b.classList.remove('pressed'));
  pauseScreen.classList.remove('active');
+ // 重新錨定 dt 基準：唔好將暫停嗰段时间計入 dt（否則會出現 huge spike）
+ lastFramePerfMs = null;
  // UX3: resume 期間重啟 weather ambient audio（pause 期間已 fade 完，避免完全靜音）
  if (currentWeather !== 'sunny') startWeatherAudio(currentWeather);
  triggerScreenFlash(); // UX2: 視覺 confirmation
@@ -2487,6 +2530,7 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  // Reset weather distribution statistics
  weatherStats  = { sunny: 0, rain: 0, snow: 0, fog: 0, thunderstorm: 0 };
  lastElapsedSec = 0;
+ lastFramePerfMs = null;
 
  // E2: Reset session weather type tracker for weather_survivor achievement
  sessionWeatherTypes = new Set();
@@ -2497,8 +2541,8 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  bonusScore = 0;
  totalScore = 0;
 
- obstacleTimer = 0;
- itemSpawnTimer = 0;
+ obstacleTimerMs = 0;
+ itemSpawnTimerMs = 0;
  currentRoadSpeed = roadSpeedBase;
 
  scoreElement.innerText = '0';
@@ -2560,6 +2604,13 @@ const finalWThunderstormSecElement = document.getElementById('final-w-thundersto
  restartBtn.addEventListener('click', startGame);
  resumeBtn.addEventListener('click', () => { if (gameState === 'PAUSED') togglePause(); });
  window.addEventListener('resize', resizeCanvas);
+
+ // 切走分頁 / 收埋 app 時自動暫停 ——
+ // rAF 會停，但 Date.now() 繼續行，唔暫停嘅話玩家「掛機」都會計時間分，
+ // 而且返嚟嗰陣會出現一個 huge dt spike。
+ document.addEventListener('visibilitychange', () => {
+ if (document.hidden && gameState === 'PLAYING') togglePause();
+ });
 
  // Sound toggle button — flip soundEnabled and apply via setSoundEnabled.
  const soundToggleBtn = document.getElementById('sound-toggle');
